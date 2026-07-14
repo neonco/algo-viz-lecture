@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Визуализация алгоритмов: от сортировок к графам — лекция</title>
+    <!--
+    ================================================================
+    ЛЕКЦИЯ-ОДНОСТРАНИЧНИК (2 часа)
+    «Визуализация алгоритмов: от сортировок к графам»
+    Стиль — по шаблону Техноматика / Честный знак (белый, зелёный).
+    Вся лекция — один файл: открывайте в браузере и листайте.
+    ================================================================
+    -->
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --green: #7BC83E;
+            --dark-green: #2C5E50;
+            --black: #0F0F0F;
+            --gray: #5A5A5E;
+            --light-gray: #8A8A8E;
+            --faint: #D9D9DE;
+            --paper: #ffffff;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', Arial, Helvetica, sans-serif;
+            background: var(--paper);
+            color: var(--black);
+            font-size: 17px;
+            line-height: 1.6;
+        }
+
+        /* ================= ШАПКА (как контент-слайд ТМ) ================= */
+        .topbar {
+            background: var(--black);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            padding: 10px 28px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 20px;
+            letter-spacing: -0.5px;
+            white-space: nowrap;
+        }
+
+        .brand .logo-mark {
+            width: 22px;
+            height: 26px;
+            background: var(--green);
+            clip-path: polygon(0 0, 100% 0, 55% 50%, 100% 100%, 0 100%, 45% 50%);
+        }
+
+        .triangles {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .triangles i {
+            width: 0;
+            height: 0;
+            border-top: 13px solid transparent;
+            border-bottom: 13px solid transparent;
+            border-left: 22px solid var(--green);
+            flex-shrink: 0;
+        }
+
+        .triangles i:nth-child(even) {
+            border-left-color: #fff;
+        }
+
+        .topbar .partners {
+            display: flex;
+            gap: 18px;
+            align-items: center;
+            font-size: 13px;
+            color: #fff;
+            white-space: nowrap;
+        }
+
+        .topbar .partners b {
+            font-weight: 700;
+        }
+
+        .topbar .partners .cz {
+            background: #F5E900;
+            color: var(--black);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        /* ================= НАВИГАЦИЯ ПО ЛЕКЦИИ ================= */
+        nav.subnav {
+            position: sticky;
+            top: 47px;
+            z-index: 99;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(6px);
+            border-bottom: 1px solid var(--faint);
+            display: flex;
+            gap: 4px;
+            padding: 0 28px;
+            overflow-x: auto;
+        }
+
+        nav.subnav a {
+            padding: 12px 14px;
+            text-decoration: none;
+            color: var(--gray);
+            font-size: 14px;
+            white-space: nowrap;
+            border-bottom: 3px solid transparent;
+        }
+
+        nav.subnav a:hover {
+            color: var(--black);
+            border-bottom-color: var(--green);
+        }
+
+        /* ================= КАРКАС ================= */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 28px;
+        }
+
+        section {
+            padding: 64px 0 8px 0;
+        }
+
+        .kicker {
+            color: var(--dark-green);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-size: 54px;
+            font-weight: 700;
+            letter-spacing: -1.5px;
+            line-height: 1.08;
+            margin-bottom: 18px;
+        }
+
+        h2 {
+            font-size: 32px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 21px;
+            font-weight: 600;
+            margin: 34px 0 10px 0;
+        }
+
+        .lead {
+            color: var(--gray);
+            font-size: 19px;
+            max-width: 760px;
+        }
+
+        p {
+            margin-bottom: 12px;
+            max-width: 820px;
+        }
+
+        p.dim, li.dim {
+            color: var(--gray);
+        }
+
+        ul, ol {
+            margin: 0 0 14px 22px;
+            max-width: 800px;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        b.g {
+            color: var(--dark-green);
+        }
+
+        code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: #f4f4f6;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+
+        pre {
+            background: var(--black);
+            color: #e8e8e8;
+            padding: 18px 20px;
+            border-radius: 10px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.55;
+            margin: 12px 0 18px 0;
+            max-width: 860px;
+        }
+
+        pre .c {
+            color: #7a7a80;
+        }
+
+        pre .g {
+            color: var(--green);
+        }
+
+        /* Тайминг-бейдж ведущего */
+        .time-badge {
+            display: inline-block;
+            background: var(--black);
+            color: var(--green);
+            font-size: 13px;
+            font-weight: 700;
+            padding: 3px 12px;
+            border-radius: 20px;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        /* ================= HERO ================= */
+        .hero {
+            padding: 90px 0 60px 0;
+            border-bottom: 1px solid var(--faint);
+        }
+
+        .hero .meta {
+            margin-top: 26px;
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            color: var(--gray);
+            font-size: 15px;
+        }
+
+        .hero .meta b {
+            display: block;
+            color: var(--black);
+            font-size: 16px;
+        }
+
+        /* ================= КАРТА ЛЕКЦИИ ================= */
+        .map-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 26px;
+        }
+
+        .map-card {
+            border-top: 4px solid var(--green);
+            padding: 18px 0 0 0;
+        }
+
+        .map-card .t {
+            color: var(--light-gray);
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .map-card h4 {
+            font-size: 19px;
+            margin: 6px 0;
+        }
+
+        .map-card p {
+            color: var(--gray);
+            font-size: 15px;
+        }
+
+        /* ================= ШАГИ (как в деке Обозненко) ================= */
+        .steps {
+            display: grid;
+            gap: 0;
+            margin: 22px 0;
+            max-width: 860px;
+        }
+
+        .step {
+            display: grid;
+            grid-template-columns: 90px 1fr;
+            gap: 18px;
+            padding: 16px 0;
+            border-top: 1px solid var(--faint);
+        }
+
+        .step .num {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--green);
+            line-height: 1.1;
+        }
+
+        .step h5 {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+
+        .step p {
+            color: var(--gray);
+            font-size: 15px;
+            margin-bottom: 6px;
+        }
+
+        /* Поток «01 → 02 → 03» как на слайде пайплайна */
+        .flow {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0;
+            align-items: stretch;
+            margin: 24px 0;
+            max-width: 1000px;
+        }
+
+        .flow .f-item {
+            flex: 1;
+            min-width: 140px;
+            border-top: 3px solid var(--green);
+            padding: 14px 14px 14px 0;
+        }
+
+        .flow .f-item .n {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--green);
+        }
+
+        .flow .f-item h5 {
+            font-size: 16px;
+            margin: 4px 0;
+        }
+
+        .flow .f-item p {
+            color: var(--gray);
+            font-size: 13.5px;
+            margin: 0;
+        }
+
+        .flow .f-arrow {
+            align-self: center;
+            font-size: 22px;
+            color: var(--green);
+            padding: 0 6px;
+        }
+
+        /* ================= ЗАМЕТКИ / ПРЕДУПРЕЖДЕНИЯ ================= */
+        .note {
+            border-left: 4px solid var(--green);
+            background: #f8fbf3;
+            padding: 14px 18px;
+            border-radius: 0 10px 10px 0;
+            margin: 14px 0;
+            max-width: 860px;
+            font-size: 15.5px;
+        }
+
+        .note.warn {
+            border-left-color: #FFC107;
+            background: #fffaf0;
+        }
+
+        .note b {
+            color: var(--dark-green);
+        }
+
+        /* ================= ТАБЛИЦА ================= */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            max-width: 860px;
+            margin: 16px 0;
+            font-size: 15px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--faint);
+            vertical-align: top;
+        }
+
+        th {
+            color: var(--dark-green);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ================= ВСТРОЕННЫЕ ДЕМО ================= */
+        .demo-frame {
+            border: 1px solid var(--faint);
+            border-radius: 14px;
+            overflow: hidden;
+            margin: 18px 0 8px 0;
+        }
+
+        .demo-frame iframe {
+            width: 100%;
+            height: 640px;
+            border: none;
+            display: block;
+        }
+
+        .demo-caption {
+            color: var(--light-gray);
+            font-size: 14px;
+            margin-bottom: 26px;
+        }
+
+        /* Сравнение «плохой vs хороший» */
+        .vs-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin: 18px 0 8px 0;
+        }
+
+        .vs-grid .demo-frame iframe {
+            height: 420px;
+        }
+
+        .vs-tag {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .vs-tag.bad {
+            color: #c0392b;
+        }
+
+        .vs-tag.good {
+            color: var(--dark-green);
+        }
+
+        @media (max-width: 900px) {
+            .vs-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .demo-caption a {
+            color: var(--dark-green);
+        }
+
+        /* ================= ЧЕК-ЛИСТ ================= */
+        .checklist {
+            list-style: none;
+            margin-left: 0;
+            max-width: 760px;
+        }
+
+        .checklist li {
+            padding: 10px 0 10px 44px;
+            position: relative;
+            border-bottom: 1px solid var(--faint);
+            font-size: 16.5px;
+        }
+
+        .checklist li::before {
+            content: counter(item);
+            counter-increment: item;
+            position: absolute;
+            left: 0;
+            top: 10px;
+            color: var(--dark-green);
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .checklist {
+            counter-reset: item;
+        }
+
+        /* ================= ФИНАЛ ================= */
+        .final {
+            margin-top: 70px;
+            padding: 50px 0 40px 0;
+            border-top: 1px solid var(--faint);
+        }
+
+        .file-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .file-list li {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--faint);
+            display: flex;
+            gap: 14px;
+            align-items: baseline;
+            flex-wrap: wrap;
+        }
+
+        .file-list a {
+            color: var(--black);
+            font-weight: 600;
+            text-decoration: none;
+            border-bottom: 2px solid var(--green);
+            font-family: 'Consolas', monospace;
+            font-size: 15px;
+        }
+
+        .file-list a:hover {
+            color: var(--dark-green);
+        }
+
+        .file-list span {
+            color: var(--gray);
+            font-size: 14.5px;
+        }
+
+        footer {
+            background: var(--black);
+            color: #fff;
+            margin-top: 60px;
+            padding: 34px 28px;
+        }
+
+        footer .container {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        footer .thanks {
+            color: var(--green);
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        footer .who {
+            color: #bdbdc2;
+            font-size: 14px;
+        }
+
+        @media (max-width: 760px) {
+            h1 { font-size: 36px; }
+            h2 { font-size: 26px; }
+            .triangles { display: none; }
+            .step { grid-template-columns: 54px 1fr; }
+            .step .num { font-size: 24px; }
+            .demo-frame iframe { height: 480px; }
+            section { padding: 44px 0 8px 0; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ================= ШАПКА ================= -->
+    <div class="topbar">
+        <div class="brand"><span class="logo-mark"></span>техноматика</div>
+        <div class="triangles">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <div class="partners">
+            <span class="cz">ЧЕСТНЫЙ ЗНАК</span>
+            <b>ШБЗ</b>
+        </div>
+    </div>
+
+    <nav class="subnav">
+        <a href="#map">Карта лекции</a>
+        <a href="#pipeline">Пайплайн одностраничника</a>
+        <a href="#deploy">Часть 1 · Деплой</a>
+        <a href="#viz">Часть 2 · Визуализация</a>
+        <a href="#practice">Практика</a>
+        <a href="#materials">Материалы</a>
+    </nav>
+
+    <!-- ================= HERO ================= -->
+    <div class="container">
+        <div class="hero">
+            <div class="kicker">Онлайн-лекция для учителей · Иркутск · 2026</div>
+            <h1>Визуализация алгоритмов:<br>от сортировок к графам</h1>
+            <p class="lead">За два часа разберём, как учителю самостоятельно собирать интерактивные
+                одностраничники с визуализацией сложных тем, публиковать их в интернете за пять минут
+                и использовать на уроках информатики.</p>
+            <div class="meta">
+                <div><b>2 часа</b>с перерывом на практику</div>
+                <div><b>Обозненко Арсений Михайлович</b>Цифровая школа МГПУ</div>
+                <div><b>Один HTML-файл</b>вся лекция — одностраничник</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <!-- ================= КАРТА ЛЕКЦИИ ================= -->
+        <section id="map">
+            <div class="kicker">Карта лекции</div>
+            <h2>Что будет в эти два часа</h2>
+            <div class="map-grid">
+                <div class="map-card">
+                    <div class="t">0:00 – 0:15</div>
+                    <h4>Пайплайн одностраничника</h4>
+                    <p>Как из идеи и одного промпта рождается работающий HTML-визуализатор.
+                        Чек-лист выбора темы и цикл «промпт → код → браузер → правки».</p>
+                </div>
+                <div class="map-card">
+                    <div class="t">0:15 – 1:05</div>
+                    <h4>Часть 1. Деплой: GitHub и GitVerse</h4>
+                    <p>Навык №1 для учителя: публикация одностраничника в интернете.
+                        Пошагово, с объяснениями: репозиторий, коммит, GitHub Pages, GitVerse Pages.</p>
+                </div>
+                <div class="map-card">
+                    <div class="t">1:05 – 2:00</div>
+                    <h4>Часть 2. Визуализация алгоритмов</h4>
+                    <p>Сортировки, дерево рекурсии (задача 16) и черепашья графика (задача 6 ЕГЭ)
+                        с кодом на Python. Сравнение «плохой vs хороший», правила сильного промпта,
+                        шаблон для своих тем.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= ПАЙПЛАЙН ================= -->
+        <section id="pipeline">
+            <div class="time-badge">0:00 – 0:15</div>
+            <div class="kicker">Введение</div>
+            <h2>Пайплайн создания одностраничников</h2>
+            <p class="lead">Одностраничное web-приложение — это визуализатор сложной темы в одном
+                HTML-файле. Его не нужно «уметь программировать»: код генерирует нейросеть,
+                а учитель управляет процессом. Вот конвейер, который мы будем использовать всю лекцию.</p>
+
+            <div class="flow">
+                <div class="f-item">
+                    <div class="n">01</div>
+                    <h5>Тема</h5>
+                    <p>выбрать сложную для учеников тему</p>
+                </div>
+                <div class="f-arrow">→</div>
+                <div class="f-item">
+                    <div class="n">02</div>
+                    <h5>Промпт</h5>
+                    <p>сформулировать задачу чат-боту</p>
+                </div>
+                <div class="f-arrow">→</div>
+                <div class="f-item">
+                    <div class="n">03</div>
+                    <h5>Код</h5>
+                    <p>получить HTML/CSS/JS</p>
+                </div>
+                <div class="f-arrow">→</div>
+                <div class="f-item">
+                    <div class="n">04</div>
+                    <h5>Файл</h5>
+                    <p>сохранить как <code>.html</code></p>
+                </div>
+                <div class="f-arrow">→</div>
+                <div class="f-item">
+                    <div class="n">05</div>
+                    <h5>Проверка</h5>
+                    <p>открыть в браузере</p>
+                </div>
+                <div class="f-arrow">→</div>
+                <div class="f-item">
+                    <div class="n">06</div>
+                    <h5>Правки</h5>
+                    <p>новый промпт → повтор цикла</p>
+                </div>
+            </div>
+
+            <h3>Чек-лист выбора темы</h3>
+            <p class="dim">Прежде чем просить ИИ собрать визуализатор, честно ответьте на пять вопросов:</p>
+            <ol class="checklist">
+                <li>Я понимаю тему (хотя бы частично — достаточно, чтобы проверить результат).</li>
+                <li>Я знаю, какие трудности она вызывает у моих учеников.</li>
+                <li>Я не нашёл хорошего готового решения.</li>
+                <li>Я абсолютно точно знаю, что хочу получить.</li>
+                <li>Я попробую сделать это с помощью конкретного ИИ.</li>
+            </ol>
+
+            <div class="note">
+                <b>Живой пример такого одностраничника</b> — визуализатор IEEE 754 «Под капотом float»:
+                биты, порядок, мантисса, точка на числовой оси. Весь интерфейс — один HTML-файл,
+                собранный нейросетью под контролем автора. На его стиле построены все демо этой лекции.
+            </div>
+        </section>
+
+        <!-- ================= ЧАСТЬ 1. ДЕПЛОЙ ================= -->
+        <section id="deploy">
+            <div class="time-badge">0:15 – 1:05 · Часть 1</div>
+            <div class="kicker">Навык №1</div>
+            <h2>Деплой одностраничников на GitHub и GitVerse</h2>
+            <p class="lead">Файл на вашем компьютере видите только вы. Деплой превращает его
+                в ссылку, которую можно отправить ученикам, показать на проекторе или зашить в QR-код.
+                Разберём два бесплатных способа: международный GitHub Pages и российский GitVerse Pages.</p>
+
+            <h3>0. Что нужно понять перед началом</h3>
+            <ul>
+                <li><b class="g">Статический хостинг</b> — это раздача готовых файлов «как есть».
+                    HTML, CSS и JavaScript работают; серверный код (PHP, Python и т.п.) — нет.
+                    Наш одностраничник — идеальный кандидат.</li>
+                <li><b class="g"><code>index.html</code></b> — точка входа. Именно этот файл откроется,
+                    когда кто-то перейдёт по ссылке. Назовите главный файл именно так.</li>
+                <li><b class="g">Относительные пути</b> — если у вас несколько файлов, ссылайтесь
+                    через <code>./file.html</code>, а не <code>C:\Users\...</code> и не <code>/file.html</code>.</li>
+                <li><b class="g">Публичность</b> — бесплатный Pages доступен для публичных репозиториев.
+                    Не выкладывайте ничего личного: страницу увидит весь интернет.</li>
+            </ul>
+
+            <h3>1. Словарь на пять минут</h3>
+            <table>
+                <tr><th>Термин</th><th>Что это</th><th>Аналогия для учителя</th></tr>
+                <tr><td><b>Репозиторий</b></td><td>Папка проекта с историей изменений</td><td>Папка с работами ученика + журнал правок</td></tr>
+                <tr><td><b>Коммит</b></td><td>Сохранённая версия изменений</td><td>«Сохранить как» с комментарием, что изменилось</td></tr>
+                <tr><td><b>Ветка (main)</b></td><td>Основная линия версий проекта</td><td>Чистовик (черновики — другие ветки)</td></tr>
+                <tr><td><b>Pages</b></td><td>Бесплатный хостинг статики из репозитория</td><td>Вывесить чистовик на школьную стену</td></tr>
+            </table>
+
+            <h3>2. GitHub Pages — пошагово</h3>
+            <div class="steps">
+                <div class="step">
+                    <div class="num">01</div>
+                    <div>
+                        <h5>Зарегистрируйтесь на github.com</h5>
+                        <p>Нужна только почта. Никнейм станет частью адреса сайта:
+                            <code>ник.github.io</code> — выбирайте читаемый.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="num">02</div>
+                    <div>
+                        <h5>Создайте репозиторий</h5>
+                        <p>Кнопка <b>New repository</b> → имя, например <code>float-viz</code> →
+                            тип <b>Public</b> → <b>Create repository</b>. Галочку «Add a README» можно не ставить.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="num">03</div>
+                    <div>
+                        <h5>Загрузите одностраничник</h5>
+                        <p><b>Add file → Upload files</b> → перетащите ваш <code>index.html</code>
+                            (и другие .html, если их несколько) → зелёная кнопка <b>Commit changes</b>.
+                            Это и есть ваш первый коммит.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="num">04</div>
+                    <div>
+                        <h5>Включите Pages</h5>
+                        <p><b>Settings → Pages</b> (слева, раздел «Code and automation») →
+                            в <b>Build and deployment</b> выберите Source: <b>Deploy from a branch</b> →
+                            Branch: <b>main</b>, папка <b>/ (root)</b> → <b>Save</b>.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="num">05</div>
+                    <div>
+                        <h5>Подождите 1–5 минут и откройте сайт</h5>
+                        <p>Адрес: <code>https://&lt;ник&gt;.github.io/&lt;репозиторий&gt;/</code>.
+                            Если 404 — подождите ещё пару минут и обновите страницу сбросом кэша (Ctrl+F5).</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="num">06</div>
+                    <div>
+                        <h5>Обновление сайта</h5>
+                        <p>Загрузите новую версию файла тем же способом (Upload files → Commit).
+                            Сайт обновится автоматически через 1–2 минуты. Отдельно «передеплоивать» не нужно.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="note">
+                <b>Необязательно, но полезно:</b> всё то же самое можно делать командами git —
+                так файлы синхронизируются с компьютером, а не через браузер:
+            </div>
+            <pre><span class="c"># один раз: клонировать репозиторий на компьютер</span>
+git clone https://github.com/&lt;ник&gt;/float-viz.git
+cd float-viz
+
+<span class="c"># каждый раз после правок файла:</span>
+git add index.html
+git commit -m <span class="g">"обновил визуализатор"</span>
+git push</pre>
+
+            <h3>3. GitVerse Pages — пошагово</h3>
+            <p class="dim">GitVerse — российский хостинг кода (разработка Сбера). Интерфейс похож на GitHub,
+                регистрация возможна через Сбер ID — для многих учителей это проще.</p>
+            <div class="steps">
+                <div class="step">
+                    <div class="num">01</div>
+                    <div>
+                        <h5>Зарегистрируйтесь на gitverse.ru</h5>
+                        <p>Подойдёт учётная запись Сбер ID. Имя пользователя станет частью адреса сайта.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="num">02</div>
+                    <div>
+                        <h5>Создайте репозиторий и загрузите файлы</h5>
+                        <p><b>Новый репозиторий</b> → имя (например, <code>float-viz</code>), публичный →
+                            загрузите <code>index.html</code> через веб-интерфейс или git —
+                            всё как на GitHub.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="num">03</div>
+                    <div>
+                        <h5>Включите Pages в настройках</h5>
+                        <p><b>Настройки → Страницы</b> → включите тумблер →
+                            в поле <b>Источник</b> выберите <b>Ветка</b> → укажите ветку <b>main</b> →
+                            сохраните.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="num">04</div>
+                    <div>
+                        <h5>Откройте сайт</h5>
+                        <p>Адрес проекта: <code>https://&lt;ник&gt;.gitverse.site/&lt;репозиторий&gt;/</code>.
+                            Публикация занимает пару минут; при каждом новом коммите сайт обновляется сам.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="note warn">
+                <b>Нюансы GitVerse Pages:</b> источник «Ветка» прогоняет файлы через встроенный сборщик
+                (Jekyll) — обычный HTML проходит через него без изменений, но все пути к стилям, скриптам
+                и соседним страницам должны быть <b>относительными</b> (через <code>./</code>).
+                Если захотите публиковать без сборки — переключите источник на <b>Воркфлоу</b>
+                и выберите готовый шаблон <b>Simple HTML Page</b>.
+            </div>
+
+            <h3>4. GitHub vs GitVerse — что выбрать</h3>
+            <table>
+                <tr><th></th><th>GitHub Pages</th><th>GitVerse Pages</th></tr>
+                <tr><td><b>Адрес сайта</b></td><td><code>ник.github.io/репо</code></td><td><code>ник.gitverse.site/репо</code></td></tr>
+                <tr><td><b>Регистрация</b></td><td>почта</td><td>почта или Сбер ID</td></tr>
+                <tr><td><b>Включение</b></td><td>Settings → Pages → Deploy from a branch</td><td>Настройки → Страницы → источник «Ветка»</td></tr>
+                <tr><td><b>Ограничения</b></td><td>только статика</td><td>только статика; относительные пути</td></tr>
+                <tr><td><b>Кому удобен</b></td><td>всем, крупнейшее комьюнити</td><td>тем, кто работает в российском контуре</td></tr>
+            </table>
+
+            <h3>5. Частые ошибки (и как их чинить)</h3>
+            <ul>
+                <li><b class="g">404 Not Found</b> — чаще всего нет <code>index.html</code> в корне
+                    или Pages ещё не собрался: подождите 5 минут, обновите с Ctrl+F5.</li>
+                <li><b class="g">Открылась пустая страница / нет стилей</b> — пути прописаны
+                    абсолютно (<code>/style.css</code> или <code>C:\...</code>). Замените на относительные.</li>
+                <li><b class="g">Изменения не видны</b> — это кэш браузера. Ctrl+F5 или режим инкогнито.</li>
+                <li><b class="g">Ссылка «не открывается» у учеников</b> — репозиторий приватный.
+                    Для бесплатного Pages он должен быть публичным.</li>
+            </ul>
+
+            <div class="note">
+                <b>Практика прямо сейчас (10 минут):</b> возьмите любой готовый одностраничник —
+                например, визуализатор IEEE 754 или файл из раздела «Материалы» — переименуйте в
+                <code>index.html</code> и пройдите шаги 1–5 сначала на GitHub, затем на GitVerse.
+                В конце у вас должно быть две работающие ссылки.
+            </div>
+        </section>
+
+        <!-- ================= ЧАСТЬ 2. ВИЗУАЛИЗАЦИЯ ================= -->
+        <section id="viz">
+            <div class="time-badge">1:05 – 2:00 · Часть 2</div>
+            <div class="kicker">От сортировок к графам</div>
+            <h2>Как визуализировать алгоритм</h2>
+            <p class="lead">Хорошая новость: все визуализаторы устроены одинаково. Если вы поняли
+                сортировку — вы поняли и граф. Разберём анатомию, а затем посмотрим на два живых примера.</p>
+
+            <h3>1. Анатомия визуализатора</h3>
+            <div class="flow">
+                <div class="f-item">
+                    <div class="n">01</div>
+                    <h5>Данные</h5>
+                    <p>массив чисел, граф, строка — «что» алгоритм обрабатывает</p>
+                </div>
+                <div class="f-arrow">→</div>
+                <div class="f-item">
+                    <div class="n">02</div>
+                    <h5>Шаги</h5>
+                    <p>алгоритм заранее разбивается на последовательность мелких действий</p>
+                </div>
+                <div class="f-arrow">→</div>
+                <div class="f-item">
+                    <div class="n">03</div>
+                    <h5>Рендер</h5>
+                    <p>каждый шаг умеет рисовать себя: подсветить, обменять, окрасить</p>
+                </div>
+                <div class="f-arrow">→</div>
+                <div class="f-item">
+                    <div class="n">04</div>
+                    <h5>Управление</h5>
+                    <p>старт / пауза / шаг / скорость — одинаково для всех тем</p>
+                </div>
+            </div>
+
+            <h3>2. Ключевой паттерн: «алгоритм как генератор шагов»</h3>
+            <p>Алгоритм <b>не рисует сам себя</b>. Он порождает шаги-инструкции
+                («сравнил», «обменял», «вызвал»), а движок проигрывает их с любой скоростью —
+                вперёд, по одному, с паузой. Именно поэтому один и тот же каркас работает
+                для любой темы. Ученикам же мы показываем привычный код на Python —
+                и подсвечиваем строку, которая выполняется прямо сейчас:</p>
+            <pre><span class="g">def</span> bubble_sort(a):
+    n = len(a)
+    <span class="g">for</span> i <span class="g">in</span> range(n):
+        <span class="g">for</span> j <span class="g">in</span> range(n - i - 1):
+            <span class="g">if</span> a[j] &gt; a[j + 1]:          <span class="c"># ← шаг «compare»</span>
+                a[j], a[j + 1] = a[j + 1], a[j]  <span class="c"># ← шаг «swap»</span></pre>
+            <p class="dim">Каждый шаг визуализатора привязан к строке Python-кода:
+                анимация слева, выполняемая строка справа. Когда просите ИИ собрать
+                визуализатор, просите именно это: «алгоритм должен возвращать массив шагов,
+                а не анимировать себя напрямую».</p>
+
+            <h3>3. Демо: сортировки — пузырьковая и шейкерная</h3>
+            <p class="dim">Два алгоритма на одном массиве — можно ввести свой. На что смотреть
+                с учениками: подсветка строки Python-кода синхронно с анимацией, число сравнений
+                и обменов, чем шейкерная экономит проходы (застрявший минимум — «черепаха» —
+                уезжает на место за один обратный проход).</p>
+            <div class="demo-frame">
+                <iframe src="./sorting_visualizer.html" title="Визуализатор сортировок"></iframe>
+            </div>
+            <p class="demo-caption">Открыть в отдельной вкладке:
+                <a href="./sorting_visualizer.html" target="_blank">sorting_visualizer.html</a></p>
+
+            <h3>4. Демо: дерево рекурсии — задача 16 ЕГЭ</h3>
+            <p class="dim">Рекурсивная функция раскрывается в дерево вызовов прямо на глазах:
+                жёлтые узлы — в стеке вызовов, фиолетовые — посчитаны, красная обводка —
+                повторный вызов. На Фибоначчи ученики сами видят, почему без мемоизации
+                F(30) считается вечность, и откуда берётся ответ для бланка.</p>
+            <div class="demo-frame">
+                <iframe src="./recursion_tree_visualizer.html" title="Визуализатор дерева рекурсии"></iframe>
+            </div>
+            <p class="demo-caption">Открыть в отдельной вкладке:
+                <a href="./recursion_tree_visualizer.html" target="_blank">recursion_tree_visualizer.html</a></p>
+
+            <h3>5. Демо: черепашья графика — задача 6 ЕГЭ</h3>
+            <p class="dim">Черепаха выполняет программу в нотации ЕГЭ (Вперёд, Направо, Повтори […])
+                прямо на координатной сетке, рядом — тот же код на Python (turtle) с подсветкой строки.
+                В финале визуализатор сам подсчитывает точки с целыми координатами внутри фигуры —
+                ровно то, что спрашивают в задаче 6. Программу можно ввести свою.</p>
+            <div class="demo-frame">
+                <iframe src="./turtle_visualizer.html" title="Визуализатор черепашьей графики"></iframe>
+            </div>
+            <p class="demo-caption">Открыть в отдельной вкладке:
+                <a href="./turtle_visualizer.html" target="_blank">turtle_visualizer.html</a></p>
+
+            <h3>6. Плохой vs хороший: сравниваем лоб в лоб</h3>
+            <p class="dim">Первый результат от ИИ почти всегда выглядит как антипримеры ниже:
+                print-лог вместо картинки и мгновенный прогон без управления. Покажите ученикам
+                обе пары — разница говорит сама за себя.</p>
+
+            <div class="vs-grid">
+                <div>
+                    <div class="vs-tag bad">✗ Плохо: лог вместо визуализации</div>
+                    <div class="demo-frame"><iframe src="./bad_sorting_visualizer.html" title="Плохой визуализатор сортировки"></iframe></div>
+                </div>
+                <div>
+                    <div class="vs-tag good">✓ Хорошо: шаги, код, управление</div>
+                    <div class="demo-frame"><iframe src="./sorting_visualizer.html" title="Хороший визуализатор сортировки"></iframe></div>
+                </div>
+                <div>
+                    <div class="vs-tag bad">✗ Плохо: каша отступов</div>
+                    <div class="demo-frame"><iframe src="./bad_recursion_visualizer.html" title="Плохой визуализатор рекурсии"></iframe></div>
+                </div>
+                <div>
+                    <div class="vs-tag good">✓ Хорошо: дерево и стек вызовов</div>
+                    <div class="demo-frame"><iframe src="./recursion_tree_visualizer.html" title="Хороший визуализатор рекурсии"></iframe></div>
+                </div>
+            </div>
+
+            <h4 style="margin-top:26px">Антипаттерны, которые выдают «плохой» визуализатор</h4>
+            <ul>
+                <li><b class="g">Стена текста</b> — print-лог вместо картинки; структура алгоритма не видна.</li>
+                <li><b class="g">Мгновенный прогон</b> — всё посчиталось до того, как ученик моргнул; не за чем наблюдать.</li>
+                <li><b class="g">Нет управления</b> — нельзя поставить паузу, вернуться на шаг, замедлить темп.</li>
+                <li><b class="g">Цвет без легенды и счётчиков</b> — что-то мигает, но непонятно, что это значит.</li>
+                <li><b class="g">Нет связи с кодом</b> — анимация живёт отдельно от программы, которую ученик сдаёт на ЕГЭ.</li>
+            </ul>
+
+            <h3>7. Как собрать свой визуализатор по шаблону</h3>
+            <div class="steps">
+                <div class="step">
+                    <div class="num">01</div>
+                    <div>
+                        <h5>Возьмите шаблон</h5>
+                        <p>Файл <code>visualizer_template.html</code> — каркас в фирменном стиле:
+                            панель ввода, сцена, показатели, движок Старт/Пауза/Шаг/Скорость.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="num">02</div>
+                    <div>
+                        <h5>Опишите ИИ свою тему и контракт шаблона</h5>
+                        <p>Приложите шаблон к сообщению и попросите заменить только «логику»:
+                            <code>buildSteps()</code>, <code>applyStep()</code>, <code>resetData()</code>.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="num">03</div>
+                    <div>
+                        <h5>Проверьте, доработайте, задеплойте</h5>
+                        <p>Откройте файл в браузере, покликайте «Шаг →» — это самый честный тест.
+                            Затем опубликуйте по инструкции из первой части.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3>8. Правила хорошего промпта — как заставить ИИ делать хорошо</h3>
+            <p class="dim">Разница между антипримером и рабочим визуализатором — почти всегда
+                разница между «сделай мне визуализацию» и точным заданием. Шесть правил:</p>
+            <ol class="checklist">
+                <li><b>Дайте образец, а не описание.</b> Приложите готовый файл
+                    (<code>visualizer_template.html</code> или прошлый визуализатор) и попросите
+                    сохранить стиль и структуру. Один файл-образец заменяет страницу описаний.</li>
+                <li><b>Зафиксируйте контракт.</b> Назовите функции и формат шагов:
+                    <code>buildSteps()</code> возвращает массив, <code>applyStep()</code> рисует один шаг.
+                    Тогда результат управляемый, а не «простыня, которая что-то делает».</li>
+                <li><b>Запретите анимировать напрямую.</b> Фраза «алгоритм не должен анимировать
+                    себя сам, только возвращать шаги» отсекает 90% плохих решений.</li>
+                <li><b>Попросите код на Python с подсветкой строки.</b> Ученики сдают ЕГЭ на Python —
+                    пусть визуализатор показывает именно тот код, который они пишут в бланке.</li>
+                <li><b>Ограничьте масштаб.</b> Один файл, без внешних библиотек, без сборщиков —
+                    иначе одностраничник не откроется с флешки и не задеплоится за 5 минут.</li>
+                <li><b>Правьте итерациями, а не заново.</b> «Оставь всё, но сделай шаг по кнопке
+                    вдвое медленнее» работает лучше, чем новый промпт с нуля.</li>
+            </ol>
+
+            <div class="note">
+                <b>Плохой промпт:</b> «Сделай визуализацию пузырьковой сортировки» —
+                получите стену лога, как в антипримере выше.<br>
+                <b>Хороший промпт:</b> образец + контракт + запрет самоанимации + Python-код +
+                один файл. Например, так — копируйте целиком:
+            </div>
+            <pre><span class="c">Приложен файл visualizer_template.html — это шаблон интерактивного
+визуализатора алгоритмов (белый фон, фиолетовый акцент #8736f5,
+тонкая типографика). Сохрани стиль и структуру файла.
+
+Сделай из него визуализатор темы «<b>[ваша тема: напр. бинарный поиск]</b>»:
+1. Замени панель ввода на входные данные моей темы.
+2. Алгоритм оформи как функцию buildSteps(), возвращающую массив
+   шагов-инструкций (compare / swap / visit / done — или свои типы).
+   Алгоритм НЕ должен анимировать себя сам — только шаги.
+3. applyStep(i, step) отрисовывает один шаг на сцене.
+4. resetData() рисует исходное состояние.
+5. Рядом со сценой покажи код алгоритма на Python (как в школьной
+   программе) и подсвечивай строку, которая выполняется на этом шаге.
+6. Добавь счётчики: сравнения, обмены / вызовы, текущий шаг.
+7. Управление (Старт/Пауза/Шаг/Сброс/Скорость) не трогай —
+   оно уже работает через VizCore.
+Верни один готовый HTML-файл без внешних зависимостей.</b></pre>
+        </section>
+
+        <!-- ================= ПРАКТИКА ================= -->
+        <section id="practice">
+            <div class="time-badge">Домашняя практика</div>
+            <div class="kicker">Задание для учителей</div>
+            <h2>Соберите и опубликуйте свой одностраничник</h2>
+            <ol class="checklist">
+                <li>Выберите тему по чек-листу из начала лекции (свой предмет — не обязательно информатика:
+                    физика, математика, география подходят так же).</li>
+                <li>Соберите визуализатор: промпт → код → <code>.html</code> → браузер → 2–3 итерации правок.
+                    Можно стартовать от <code>visualizer_template.html</code>.</li>
+                <li>Переименуйте главный файл в <code>index.html</code>, проверьте относительные пути.</li>
+                <li>Задеплойте на GitHub Pages и на GitVerse Pages — двумя способами, как в первой части.</li>
+                <li>Сделайте QR-код на ссылку (любой генератор QR) — и повесьте в классе.</li>
+            </ol>
+            <div class="note">
+                <b>Критерий хорошего результата:</b> ученик открывает ссылку с телефона,
+                нажимает «Старт» и без ваших пояснений видит, как алгоритм работает по шагам.
+            </div>
+        </section>
+
+        <!-- ================= МАТЕРИАЛЫ ================= -->
+        <section id="materials">
+            <div class="kicker">Материалы лекции</div>
+            <h2>Файлы и ссылки</h2>
+            <ul class="file-list">
+                <li><a href="./index.html">index.html</a> <span>— эта лекция-одностраничник (можно задеплоить целиком)</span></li>
+                <li><a href="./visualizer_template.html">visualizer_template.html</a> <span>— шаблон визуализатора в стиле «Под капотом float», с комментариями</span></li>
+                <li><a href="./sorting_visualizer.html">sorting_visualizer.html</a> <span>— демо: пузырьковая и шейкерная сортировки, свой массив, код на Python</span></li>
+                <li><a href="./recursion_tree_visualizer.html">recursion_tree_visualizer.html</a> <span>— демо: дерево рекурсии, Фибоначчи и факториал (задача 16 ЕГЭ)</span></li>
+                <li><a href="./turtle_visualizer.html">turtle_visualizer.html</a> <span>— демо: черепашья графика, задача 6 ЕГЭ, точки внутри фигуры</span></li>
+                <li><a href="./bad_sorting_visualizer.html">bad_sorting_visualizer.html</a> <span>— антипример: сортировка как стена лога</span></li>
+                <li><a href="./bad_recursion_visualizer.html">bad_recursion_visualizer.html</a> <span>— антипример: рекурсия как каша отступов</span></li>
+            </ul>
+            <p class="dim" style="margin-top:18px">Полезные ссылки:
+                <a href="https://github.com" target="_blank" style="color:var(--dark-green)">github.com</a> ·
+                <a href="https://gitverse.ru" target="_blank" style="color:var(--dark-green)">gitverse.ru</a> ·
+                <a href="https://docs.github.com/ru/pages" target="_blank" style="color:var(--dark-green)">документация GitHub Pages</a> ·
+                <a href="https://gitverse.ru/docs/pages/" target="_blank" style="color:var(--dark-green)">документация GitVerse Pages</a>
+            </p>
+        </section>
+
+        <!-- ================= ФИНАЛ ================= -->
+        <div class="final">
+            <div class="kicker">Спасибо за внимание!</div>
+            <h2 style="font-size:40px">Визуализация алгоритмов:<br>от сортировок к графам</h2>
+            <p class="dim">Обозненко Арсений Михайлович · Цифровая школа МГПУ</p>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <div>
+                <div class="thanks">техноматика</div>
+                <div class="who">Лекция для учителей · Иркутск · 2026</div>
+            </div>
+            <div class="who">Честный знак · ШБЗ</div>
+        </div>
+    </footer>
+
+</body>
+
+</html>
