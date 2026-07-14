@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Визуализатор черепашьей графики</title>
+    <!-- Визуализатор черепашьей графики (задача 6 ЕГЭ).
+         Черепаха выполняет программу по шагам на координатной сетке,
+         для замкнутой фигуры считает точки с целыми координатами внутри.
+         Код — Python (turtle) с подсветкой строки.
+         Стиль — по шаблону visualizer_template.html («Под капотом float»). -->
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --accent: #8736f5;
+            --text: #111;
+            --gray: #666;
+            --light-gray: #ddd;
+            --ok: #4CAF50;
+            --warn: #FFC107;
+            --bad: #FF4D4D;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #ffffff;
+            color: #333;
+            min-height: 100vh;
+            padding: 0 0 20px 0;
+            font-size: 16px;
+        }
+
+        h1.main-title {
+            text-align: center;
+            margin-bottom: 10px;
+            margin-top: 10px;
+            color: var(--text);
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: -1px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 40px;
+        }
+
+        .panel {
+            background: #fff;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 300;
+            font-size: 24px;
+            color: var(--text);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .controls {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .input-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text);
+            font-size: 18px;
+            font-weight: 400;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 5px 0;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--light-gray);
+            color: var(--text);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 18px;
+            font-weight: 300;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-bottom-color: var(--accent);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+            height: 32px;
+        }
+
+        .pill-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 6px 18px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 30px;
+            color: #666;
+            font-family: inherit;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .btn.primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .btn.primary:hover {
+            opacity: 0.85;
+        }
+
+        .input-error {
+            color: var(--bad);
+            font-size: 13px;
+            margin-top: 4px;
+            min-height: 18px;
+        }
+
+        /* --- Сцена + код --- */
+        .viz-grid {
+            display: grid;
+            grid-template-columns: 1.6fr 1fr;
+            gap: 30px;
+            align-items: stretch;
+        }
+
+        .stage {
+            border-top: 1px solid var(--light-gray);
+            border-bottom: 1px solid var(--light-gray);
+            height: 400px;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .grid-line {
+            stroke: #f0f0f2;
+            stroke-width: 1;
+        }
+
+        .axis-line {
+            stroke: #c9c9cf;
+            stroke-width: 1.5;
+        }
+
+        .axis-label {
+            font-size: 11px;
+            fill: #a0a0a8;
+            font-family: 'Consolas', monospace;
+        }
+
+        .trail {
+            stroke: var(--text);
+            stroke-width: 2.5;
+            fill: none;
+            stroke-linejoin: round;
+            stroke-linecap: round;
+        }
+
+        .trail-penup {
+            stroke: #ccc;
+            stroke-dasharray: 4 4;
+        }
+
+        .lattice-dot {
+            fill: var(--ok);
+            opacity: 0.85;
+        }
+
+        .turtle-marker {
+            fill: var(--accent);
+            stroke: #fff;
+            stroke-width: 1.5;
+        }
+
+        .legend {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            margin-top: 12px;
+            flex-wrap: wrap;
+            font-size: 14px;
+            color: var(--gray);
+        }
+
+        .legend span::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-right: 6px;
+            vertical-align: -1px;
+        }
+
+        .legend .l-trail::before { background: var(--text); height: 3px; vertical-align: 2px; }
+        .legend .l-turtle::before { background: var(--accent); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+        .legend .l-dot::before { background: var(--ok); border-radius: 50%; }
+
+        /* --- Панель Python-кода --- */
+        .code-panel {
+            border: 1px solid var(--light-gray);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .code-title {
+            background: #f5f5f7;
+            padding: 8px 16px;
+            font-size: 13px;
+            color: var(--gray);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .code-body {
+            padding: 14px 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14.5px;
+            line-height: 1.7;
+            flex: 1;
+        }
+
+        .code-line {
+            display: flex;
+            padding: 0 16px 0 0;
+            border-left: 3px solid transparent;
+            white-space: pre;
+            color: #444;
+        }
+
+        .code-line .ln {
+            width: 36px;
+            text-align: right;
+            padding-right: 12px;
+            color: #bbb;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .code-line.active {
+            background: #f3ebfd;
+            border-left-color: var(--accent);
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 30px;
+            margin-top: 15px;
+        }
+
+        .info-item {
+            border-top: 1px solid var(--light-gray);
+            padding-top: 5px;
+        }
+
+        .info-item .label {
+            color: var(--gray);
+            font-size: 14px;
+            margin-bottom: 5px;
+            font-weight: 400;
+        }
+
+        .info-item .value {
+            color: var(--text);
+            font-size: 20px;
+            font-weight: 300;
+            word-break: break-all;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        @media (max-width: 900px) {
+            .viz-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1.main-title {
+                font-size: 34px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 20px;
+            }
+
+            .container {
+                padding: 0 16px;
+            }
+
+            .stage { height: 300px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1 class="main-title">Черепашья графика</h1>
+
+        <div class="panel">
+            <h2 class="section-title">Ввод данных</h2>
+
+            <div class="controls">
+                <div class="input-group">
+                    <label>Программа (задача 6 ЕГЭ)</label>
+                    <div class="pill-row" id="progPills">
+                        <button class="btn active" data-prog="square">Квадрат</button>
+                        <button class="btn" data-prog="rect">Прямоугольник (демо)</button>
+                        <button class="btn" data-prog="triangle">Треугольник</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="input-group">
+                    <label>Своя программа</label>
+                    <input type="text" id="progInput"
+                        placeholder="Повтори 2 [Вперёд 7 Направо 90 Вперёд 14 Направо 90]">
+                    <div class="input-error" id="inputError"></div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="input-group">
+                    <label>Скорость анимации</label>
+                    <input type="range" id="speedRange" min="1" max="20" value="10">
+                </div>
+
+                <div class="input-group">
+                    <label>Управление</label>
+                    <div class="pill-row">
+                        <button class="btn primary" id="playBtn">▶ Старт</button>
+                        <button class="btn" id="stepBtn">Шаг →</button>
+                        <button class="btn" id="resetBtn">⟲ Сброс</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2 class="section-title">Визуализация</h2>
+            <div class="viz-grid">
+                <div>
+                    <div class="stage" id="stage"></div>
+                    <div class="legend">
+                        <span class="l-trail">след хвоста</span>
+                        <span class="l-turtle">черепаха</span>
+                        <span class="l-dot">точки с целыми координатами внутри</span>
+                    </div>
+                </div>
+                <div class="code-panel">
+                    <div class="code-title">Python · turtle</div>
+                    <div class="code-body" id="codeBody"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2 class="section-title">Показатели</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="label">Текущий шаг</div>
+                    <div class="value" id="stepInfo">0 / 0</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Команда</div>
+                    <div class="value" id="cmdInfo">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Координаты (x; y)</div>
+                    <div class="value" id="posInfo">(0; 0)</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Курс</div>
+                    <div class="value" id="headInfo">0°</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Точек внутри фигуры</div>
+                    <div class="value" id="pointsInfo">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Статус</div>
+                    <div class="value" id="statusInfo">Готов</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /*
+        ================================================================
+        Визуализатор черепашьей графики (шаблон VizCore).
+        Программа в нотации ЕГЭ: Вперёд n, Назад n, Направо a, Налево a,
+        Поднять/Опустить хвост, Повтори k [ ... ].
+        Парсер → AST → шаги (движение на 1 единицу = 1 шаг).
+        Для замкнутой фигуры в конце: точки с целыми координатами
+        строго внутри многоугольника (то, что спрашивают в задаче 6).
+        ================================================================
+        */
+        const stage = document.getElementById('stage');
+        const playBtn = document.getElementById('playBtn');
+        const stepBtn = document.getElementById('stepBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const speedRange = document.getElementById('speedRange');
+        const progInput = document.getElementById('progInput');
+        const inputError = document.getElementById('inputError');
+        const codeBody = document.getElementById('codeBody');
+
+        const PRESETS = {
+            square:   { text: 'Повтори 4 [Вперёд 8 Направо 90]',                          label: 'Квадрат' },
+            rect:     { text: 'Повтори 2 [Вперёд 10 Направо 90 Вперёд 18 Направо 90]',    label: 'Прямоугольник (демо)' },
+            triangle: { text: 'Повтори 3 [Вперёд 10 Направо 120]',                        label: 'Треугольник' }
+        };
+
+        const MAX_STEPS = 600;
+
+        let currentPreset = 'square';
+        let steps = [];
+        let current = -1;
+        let playing = false;
+        let timer = null;
+        let donePayload = null;   // точки внутри (вычисляются на шаге done)
+        let scale = 20, originX = 60, originY = 60; // экранные преобразования
+        let polylineEl = null;
+        let turtleEl = null;
+        let trailPath = '';
+        let codeLinesCache = [];
+
+        /* ================= ПАРСЕР НОТАЦИИ ЕГЭ ================= */
+        function tokenize(src) {
+            const tokens = [];
+            const re = /(\[|\])|([A-Za-zА-Яа-яЁё]+)|(\d+)|(\S)/g;
+            let m;
+            while ((m = re.exec(src)) !== null) {
+                if (m[1]) tokens.push({ t: m[1] });
+                else if (m[2]) tokens.push({ t: 'word', v: m[2].toLowerCase().replace(/ё/g, 'е') });
+                else if (m[3]) tokens.push({ t: 'num', v: parseInt(m[3]) });
+                else throw new Error(`Не понимаю символ «${m[4]}»`);
+            }
+            return tokens;
+        }
+
+        function parse(tokens) {
+            let pos = 0;
+            function parseBlock(stopAtBracket) {
+                const cmds = [];
+                while (pos < tokens.length) {
+                    const tk = tokens[pos];
+                    if (tk.t === ']') {
+                        if (stopAtBracket) return cmds;
+                        throw new Error('Лишняя закрывающая скобка ]');
+                    }
+                    if (tk.t === '[') throw new Error('Скобка [ без «Повтори»');
+                    if (tk.t !== 'word') throw new Error('Ожидалась команда');
+                    const w = tk.v;
+                    pos++;
+                    if (w === 'повтори') {
+                        if (pos >= tokens.length || tokens[pos].t !== 'num')
+                            throw new Error('После «Повтори» нужно число');
+                        const k = tokens[pos].v; pos++;
+                        if (pos >= tokens.length || tokens[pos].t !== '[')
+                            throw new Error('После числа нужна скобка [');
+                        pos++;
+                        const body = parseBlock(true);
+                        if (pos >= tokens.length || tokens[pos].t !== ']')
+                            throw new Error('Нет закрывающей скобки ]');
+                        pos++;
+                        cmds.push({ cmd: 'repeat', k, body });
+                    } else if (w === 'вперед' || w === 'назад') {
+                        if (pos >= tokens.length || tokens[pos].t !== 'num')
+                            throw new Error(`После «${w}» нужно число`);
+                        cmds.push({ cmd: w === 'вперед' ? 'fd' : 'bk', n: tokens[pos].v });
+                        pos++;
+                    } else if (w === 'направо' || w === 'налево') {
+                        if (pos >= tokens.length || tokens[pos].t !== 'num')
+                            throw new Error(`После «${w}» нужен угол`);
+                        cmds.push({ cmd: w === 'направо' ? 'rt' : 'lt', a: tokens[pos].v });
+                        pos++;
+                    } else if (w === 'опустить' || w === 'поднять') {
+                        if (pos < tokens.length && tokens[pos].t === 'word' && tokens[pos].v === 'хвост') pos++;
+                        cmds.push({ cmd: w === 'опустить' ? 'pd' : 'pu' });
+                    } else {
+                        throw new Error(`Неизвестная команда «${w}»`);
+                    }
+                }
+                if (stopAtBracket) throw new Error('Нет закрывающей скобки ]');
+                return cmds;
+            }
+            const ast = parseBlock(false);
+            if (!ast.length) throw new Error('Программа пустая');
+            return ast;
+        }
+
+        /* ============ AST → Python-код с номерами строк ============ */
+        function astToPython(ast) {
+            const lines = ['import turtle', '', 't = turtle.Turtle()', ''];
+            function emit(cmds, indent) {
+                for (const c of cmds) {
+                    const pad = '    '.repeat(indent);
+                    if (c.cmd === 'repeat') {
+                        c.line = lines.length + 1;
+                        lines.push(`${pad}for _ in range(${c.k}):`);
+                        emit(c.body, indent + 1);
+                    } else if (c.cmd === 'fd') { c.line = lines.length + 1; lines.push(`${pad}t.forward(${c.n})`); }
+                    else if (c.cmd === 'bk') { c.line = lines.length + 1; lines.push(`${pad}t.backward(${c.n})`); }
+                    else if (c.cmd === 'rt') { c.line = lines.length + 1; lines.push(`${pad}t.right(${c.a})`); }
+                    else if (c.cmd === 'lt') { c.line = lines.length + 1; lines.push(`${pad}t.left(${c.a})`); }
+                    else if (c.cmd === 'pd') { c.line = lines.length + 1; lines.push(`${pad}t.pendown()`); }
+                    else if (c.cmd === 'pu') { c.line = lines.length + 1; lines.push(`${pad}t.penup()`); }
+                }
+            }
+            emit(ast, 0);
+            return lines;
+        }
+
+        function cmdLabel(c) {
+            switch (c.cmd) {
+                case 'fd': return `Вперёд ${c.n}`;
+                case 'bk': return `Назад ${c.n}`;
+                case 'rt': return `Направо ${c.a}`;
+                case 'lt': return `Налево ${c.a}`;
+                case 'pd': return 'Опустить хвост';
+                case 'pu': return 'Поднять хвост';
+                default: return '';
+            }
+        }
+
+        /* ================= AST → шаги ================= */
+        function astToSteps(ast) {
+            const out = [];
+            let total = 0;
+            function walk(cmds) {
+                for (const c of cmds) {
+                    if (c.cmd === 'repeat') {
+                        for (let i = 0; i < c.k; i++) walk(c.body);
+                    } else if (c.cmd === 'fd' || c.cmd === 'bk') {
+                        for (let u = 0; u < c.n; u++) {
+                            out.push({ type: 'move', sign: c.cmd === 'fd' ? 1 : -1, line: c.line, label: cmdLabel(c) });
+                            total++;
+                            if (total > MAX_STEPS) throw new Error(`Слишком длинная программа (больше ${MAX_STEPS} шагов).`);
+                        }
+                    } else if (c.cmd === 'rt' || c.cmd === 'lt') {
+                        out.push({ type: 'turn', sign: c.cmd === 'rt' ? 1 : -1, a: c.a, line: c.line, label: cmdLabel(c) });
+                    } else if (c.cmd === 'pd' || c.cmd === 'pu') {
+                        out.push({ type: 'pen', down: c.cmd === 'pd', line: c.line, label: cmdLabel(c) });
+                    }
+                }
+            }
+            walk(ast);
+            return out;
+        }
+
+        /* ============ Полный прогон: путь, рамка, точки внутри ============ */
+        const EPS = 1e-9;
+
+        function simulate(steps) {
+            let x = 0, y = 0, h = 0, pen = true;
+            const path = [[0, 0]];
+            const vertices = [[0, 0]];
+            for (const s of steps) {
+                if (s.type === 'move') {
+                    const rad = h * Math.PI / 180;
+                    x += s.sign * Math.sin(rad);
+                    y += s.sign * Math.cos(rad);
+                    path.push([x, y]);
+                    if (pen) {
+                        const last = vertices[vertices.length - 1];
+                        if (Math.abs(last[0] - x) > EPS || Math.abs(last[1] - y) > EPS)
+                            vertices.push([x, y]);
+                    }
+                } else if (s.type === 'turn') {
+                    h = ((h + s.sign * s.a) % 360 + 360) % 360;
+                } else if (s.type === 'pen') {
+                    pen = s.down;
+                }
+            }
+            return { path, vertices, endX: x, endY: y };
+        }
+
+        function fmtCoord(v) {
+            const r = Math.round(v);
+            if (Math.abs(v - r) < 1e-6) return r;
+            return Math.round(v * 10) / 10;
+        }
+
+        // точки с целыми координатами строго внутри многоугольника
+        function interiorPoints(vertices) {
+            const first = vertices[0], last = vertices[vertices.length - 1];
+            if (Math.abs(first[0] - last[0]) > 1e-6 || Math.abs(first[1] - last[1]) > 1e-6)
+                return null; // не замкнута
+            const pts = [];
+            const n = vertices.length;
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            vertices.forEach(([vx, vy]) => {
+                minX = Math.min(minX, vx); maxX = Math.max(maxX, vx);
+                minY = Math.min(minY, vy); maxY = Math.max(maxY, vy);
+            });
+            function onBoundary(px, py) {
+                for (let i = 0; i < n - 1; i++) {
+                    const [x1, y1] = vertices[i], [x2, y2] = vertices[i + 1];
+                    const dx = x2 - x1, dy = y2 - y1;
+                    const cross = (px - x1) * dy - (py - y1) * dx;
+                    const len2 = dx * dx + dy * dy;
+                    if (Math.abs(cross) < 1e-7 * Math.sqrt(len2) &&
+                        px >= Math.min(x1, x2) - EPS && px <= Math.max(x1, x2) + EPS &&
+                        py >= Math.min(y1, y2) - EPS && py <= Math.max(y1, y2) + EPS) return true;
+                }
+                return false;
+            }
+            function inside(px, py) {
+                let c = false;
+                for (let i = 0, j = n - 2; i < n - 1; j = i++) {
+                    const [xi, yi] = vertices[i], [xj, yj] = vertices[j];
+                    if (((yi > py) !== (yj > py)) &&
+                        (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) c = !c;
+                }
+                return c;
+            }
+            for (let px = Math.ceil(minX); px <= Math.floor(maxX); px++) {
+                for (let py = Math.ceil(minY); py <= Math.floor(maxY); py++) {
+                    if (!onBoundary(px, py) && inside(px, py)) pts.push([px, py]);
+                }
+            }
+            return pts;
+        }
+
+        /* ================= Рендер сцены ================= */
+        function toScreen(px, py) {
+            return { x: originX + px * scale, y: originY - py * scale };
+        }
+
+        function renderScene(path, vertices) {
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            path.forEach(([px, py]) => {
+                minX = Math.min(minX, px); maxX = Math.max(maxX, px);
+                minY = Math.min(minY, py); maxY = Math.max(maxY, py);
+            });
+            minX = Math.min(minX, 0); minY = Math.min(minY, 0);
+            maxX = Math.max(maxX, 0); maxY = Math.max(maxY, 0);
+
+            const padCells = 1.5;
+            const wCells = (maxX - minX) + padCells * 2;
+            const hCells = (maxY - minY) + padCells * 2;
+            scale = Math.min(620 / wCells, 340 / hCells, 26);
+            originX = 40 + padCells * scale - minX * scale;
+            originY = 20 + (hCells - padCells) * scale + minY * scale;
+            const W = 40 + wCells * scale + 20;
+            const H = 20 + hCells * scale + 30;
+
+            let svg = '';
+            // сетка
+            for (let gx = Math.floor(minX - padCells); gx <= Math.ceil(maxX + padCells); gx++) {
+                const p1 = toScreen(gx, minY - padCells), p2 = toScreen(gx, maxY + padCells);
+                svg += `<line class="grid-line" x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}"/>`;
+            }
+            for (let gy = Math.floor(minY - padCells); gy <= Math.ceil(maxY + padCells); gy++) {
+                const p1 = toScreen(minX - padCells, gy), p2 = toScreen(maxX + padCells, gy);
+                svg += `<line class="grid-line" x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}"/>`;
+            }
+            // оси
+            const o = toScreen(0, 0);
+            svg += `<line class="axis-line" x1="10" y1="${o.y}" x2="${W - 14}" y2="${o.y}"/>
+                    <line class="axis-line" x1="${o.x}" y1="${H - 10}" x2="${o.x}" y2="10"/>
+                    <text class="axis-label" x="${W - 14}" y="${o.y - 6}">x</text>
+                    <text class="axis-label" x="${o.x + 6}" y="14">y</text>
+                    <text class="axis-label" x="${o.x + 4}" y="${o.y + 14}">0</text>`;
+            // подписи координат через каждые 5 единиц
+            for (let gx = Math.ceil(minX / 5) * 5; gx <= maxX; gx += 5) {
+                if (gx === 0) continue;
+                const p = toScreen(gx, 0);
+                svg += `<text class="axis-label" x="${p.x - 6}" y="${o.y + 14}">${gx}</text>`;
+            }
+            for (let gy = Math.ceil(minY / 5) * 5; gy <= maxY; gy += 5) {
+                if (gy === 0) continue;
+                const p = toScreen(0, gy);
+                svg += `<text class="axis-label" x="${o.x + 6}" y="${p.y + 4}">${gy}</text>`;
+            }
+            // след и черепаха
+            svg += `<polyline class="trail" id="trailLine" points=""/>`;
+            svg += `<g id="dotsLayer"></g>`;
+            svg += `<path id="turtle" class="turtle-marker" d="M 0 -12 L 8 9 L 0 5 L -8 9 Z"/>`;
+
+            stage.innerHTML =
+                `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
+            polylineEl = document.getElementById('trailLine');
+            turtleEl = document.getElementById('turtle');
+            trailPath = `${o.x},${o.y}`;
+            polylineEl.setAttribute('points', trailPath);
+            moveTurtle(0, 0, 0);
+        }
+
+        function moveTurtle(px, py, h) {
+            const p = toScreen(px, py);
+            turtleEl.setAttribute('transform', `translate(${p.x} ${p.y}) rotate(${h})`);
+        }
+
+        function drawDots(pts) {
+            const layer = document.getElementById('dotsLayer');
+            if (!layer) return;
+            let html = '';
+            pts.forEach(([px, py]) => {
+                const p = toScreen(px, py);
+                html += `<circle class="lattice-dot" cx="${p.x}" cy="${p.y}" r="3.5"/>`;
+            });
+            layer.innerHTML = html;
+        }
+
+        /* ================= Python-панель ================= */
+        function renderCode(lines) {
+            codeBody.innerHTML = '';
+            lines.forEach((text, idx) => {
+                const div = document.createElement('div');
+                div.className = 'code-line';
+                div.dataset.line = idx + 1;
+                const ln = document.createElement('span');
+                ln.className = 'ln';
+                ln.textContent = idx + 1;
+                const code = document.createElement('span');
+                code.textContent = text || ' ';
+                div.appendChild(ln);
+                div.appendChild(code);
+                codeBody.appendChild(div);
+            });
+        }
+
+        function highlightLine(lineNo) {
+            codeBody.querySelectorAll('.code-line').forEach(el => {
+                el.classList.toggle('active', parseInt(el.dataset.line) === lineNo);
+            });
+        }
+
+        /* ================= Движок ================= */
+        function rebuild() {
+            stopPlaying();
+            playState = { x: 0, y: 0, h: 0 };
+            let src = progInput.value.trim();
+            if (src === '') {
+                src = PRESETS[currentPreset].text;
+            }
+            try {
+                const ast = parse(tokenize(src));
+                codeLinesCache = astToPython(ast);
+                steps = astToSteps(ast);
+                const { path, vertices } = simulate(steps);
+                renderScene(path, vertices);
+                renderCode(codeLinesCache);
+                // точки внутри считаем сразу, но показываем на шаге done
+                const pts = pen2wasUp(steps) ? null : interiorPoints(vertices);
+                donePayload = pts;
+                inputError.textContent = '';
+                steps.push({ type: 'done' });
+                current = -1;
+                updateInfo();
+                document.getElementById('cmdInfo').textContent = '—';
+                document.getElementById('posInfo').textContent = '(0; 0)';
+                document.getElementById('headInfo').textContent = '0°';
+                document.getElementById('pointsInfo').textContent = '—';
+                setStatus('Готов');
+            } catch (e) {
+                inputError.textContent = e.message;
+                steps = [];
+                current = -1;
+                updateInfo();
+                setStatus('Ошибка в программе');
+            }
+        }
+
+        function pen2wasUp(steps) {
+            return steps.some(s => s.type === 'pen' && !s.down);
+        }
+
+        function applyStep(i, s) {
+            if (s.type === 'done') {
+                if (donePayload === null) {
+                    document.getElementById('pointsInfo').textContent = 'фигура не замкнута';
+                } else {
+                    drawDots(donePayload);
+                    document.getElementById('pointsInfo').textContent = donePayload.length;
+                }
+                return;
+            }
+            if (s.type === 'move') {
+                const st = playState;
+                const rad = st.h * Math.PI / 180;
+                st.x += s.sign * Math.sin(rad);
+                st.y += s.sign * Math.cos(rad);
+                const p = toScreen(st.x, st.y);
+                trailPath += ` ${p.x},${p.y}`;
+                polylineEl.setAttribute('points', trailPath);
+                moveTurtle(st.x, st.y, st.h);
+            } else if (s.type === 'turn') {
+                const st = playState;
+                st.h = ((st.h + s.sign * s.a) % 360 + 360) % 360;
+                moveTurtle(st.x, st.y, st.h);
+            }
+            document.getElementById('cmdInfo').textContent = s.label || '—';
+            document.getElementById('posInfo').textContent =
+                `(${fmtCoord(playState.x)}; ${fmtCoord(playState.y)})`;
+            document.getElementById('headInfo').textContent = playState.h + '°';
+            if (s.line) highlightLine(s.line);
+            updateInfo();
+        }
+
+        let playState = { x: 0, y: 0, h: 0 };
+
+        function updateInfo() {
+            document.getElementById('stepInfo').textContent =
+                `${Math.max(current + 1, 0)} / ${steps.length}`;
+        }
+
+        function setStatus(t) {
+            document.getElementById('statusInfo').textContent = t;
+        }
+
+        function delay() {
+            return 600 - speedRange.value * 28;
+        }
+
+        function stopPlaying() {
+            playing = false;
+            clearTimeout(timer);
+            playBtn.textContent = '▶ Старт';
+        }
+
+        function tick() {
+            if (!playing) return;
+            if (current >= steps.length - 1) {
+                stopPlaying();
+                setStatus('Программа выполнена');
+                return;
+            }
+            current++;
+            applyStep(current, steps[current]);
+            timer = setTimeout(tick, delay());
+        }
+
+        /* ---------- События ---------- */
+        playBtn.addEventListener('click', () => {
+            if (playing) { stopPlaying(); setStatus('Пауза'); return; }
+            if (current >= steps.length - 1) rebuild();
+            playing = true;
+            playBtn.textContent = '⏸ Пауза';
+            setStatus('Выполняется');
+            tick();
+        });
+
+        stepBtn.addEventListener('click', () => {
+            stopPlaying();
+            if (current < steps.length - 1) {
+                current++;
+                applyStep(current, steps[current]);
+                setStatus(current === steps.length - 1 ? 'Программа выполнена' : 'Пошагово');
+            }
+        });
+
+        resetBtn.addEventListener('click', rebuild);
+        progInput.addEventListener('change', rebuild);
+
+        document.querySelectorAll('#progPills .btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#progPills .btn')
+                    .forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentPreset = btn.dataset.prog;
+                progInput.value = '';
+                rebuild();
+            });
+        });
+
+        /* ---------- Старт ---------- */
+        rebuild();
+    </script>
+</body>
+
+</html>
