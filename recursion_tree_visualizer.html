@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Визуализатор дерева рекурсии</title>
+    <!-- Визуализатор дерева вызовов рекурсивной функции (задача 16 ЕГЭ):
+         числа Фибоначчи и факториал. Код — Python с подсветкой строки.
+         Стиль — по шаблону visualizer_template.html («Под капотом float»). -->
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --accent: #8736f5;
+            --text: #111;
+            --gray: #666;
+            --light-gray: #ddd;
+            --ok: #4CAF50;
+            --warn: #FFC107;
+            --bad: #FF4D4D;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #ffffff;
+            color: #333;
+            min-height: 100vh;
+            padding: 0 0 20px 0;
+            font-size: 16px;
+        }
+
+        h1.main-title {
+            text-align: center;
+            margin-bottom: 10px;
+            margin-top: 10px;
+            color: var(--text);
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: -1px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 40px;
+        }
+
+        .panel {
+            background: #fff;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 300;
+            font-size: 24px;
+            color: var(--text);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .controls {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .input-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text);
+            font-size: 18px;
+            font-weight: 400;
+        }
+
+        input[type="number"] {
+            width: 120px;
+            padding: 5px 0;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--light-gray);
+            color: var(--text);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 20px;
+            font-weight: 300;
+            transition: border-color 0.2s;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-bottom-color: var(--accent);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+            height: 32px;
+        }
+
+        .pill-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 6px 18px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 30px;
+            color: #666;
+            font-family: inherit;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .btn.primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .btn.primary:hover {
+            opacity: 0.85;
+        }
+
+        .input-error {
+            color: var(--bad);
+            font-size: 13px;
+            margin-top: 4px;
+            min-height: 18px;
+        }
+
+        /* --- Сцена + код --- */
+        .viz-grid {
+            display: grid;
+            grid-template-columns: 1.6fr 1fr;
+            gap: 30px;
+            align-items: stretch;
+        }
+
+        .stage {
+            border-top: 1px solid var(--light-gray);
+            border-bottom: 1px solid var(--light-gray);
+            height: 380px;
+            overflow: auto;
+            padding: 10px;
+        }
+
+        svg {
+            display: block;
+        }
+
+        .r-edge {
+            stroke: #e0e0e0;
+            stroke-width: 2;
+        }
+
+        .r-node circle {
+            fill: #f5f5f5;
+            stroke: #ccc;
+            stroke-width: 2;
+        }
+
+        .r-node text {
+            font-size: 14px;
+            fill: var(--text);
+            text-anchor: middle;
+            dominant-baseline: central;
+        }
+
+        .r-node.onstack circle {
+            fill: var(--warn);
+            stroke: var(--warn);
+        }
+
+        .r-node.done circle {
+            fill: var(--accent);
+            stroke: var(--accent);
+        }
+
+        .r-node.done text {
+            fill: #fff;
+        }
+
+        .r-node.dup circle {
+            stroke: var(--bad);
+            stroke-width: 3;
+            stroke-dasharray: 4 3;
+        }
+
+        .r-val {
+            font-size: 13px;
+            fill: var(--accent);
+            text-anchor: middle;
+            font-weight: 600;
+        }
+
+        .legend {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            margin-top: 12px;
+            flex-wrap: wrap;
+            font-size: 14px;
+            color: var(--gray);
+        }
+
+        .legend span::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: -1px;
+        }
+
+        .legend .l-stack::before { background: var(--warn); }
+        .legend .l-done::before { background: var(--accent); }
+        .legend .l-dup::before {
+            background: #fff;
+            border: 2px dashed var(--bad);
+        }
+
+        /* --- Панель Python-кода --- */
+        .code-panel {
+            border: 1px solid var(--light-gray);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .code-title {
+            background: #f5f5f7;
+            padding: 8px 16px;
+            font-size: 13px;
+            color: var(--gray);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .code-body {
+            padding: 14px 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14.5px;
+            line-height: 1.7;
+        }
+
+        .code-line {
+            display: flex;
+            padding: 0 16px 0 0;
+            border-left: 3px solid transparent;
+            white-space: pre;
+            color: #444;
+        }
+
+        .code-line .ln {
+            width: 36px;
+            text-align: right;
+            padding-right: 12px;
+            color: #bbb;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .code-line.active {
+            background: #f3ebfd;
+            border-left-color: var(--accent);
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .code-note {
+            padding: 10px 16px;
+            font-size: 13px;
+            color: var(--gray);
+            border-top: 1px solid var(--light-gray);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-top: 15px;
+        }
+
+        .info-item {
+            border-top: 1px solid var(--light-gray);
+            padding-top: 5px;
+        }
+
+        .info-item .label {
+            color: var(--gray);
+            font-size: 14px;
+            margin-bottom: 5px;
+            font-weight: 400;
+        }
+
+        .info-item .value {
+            color: var(--text);
+            font-size: 20px;
+            font-weight: 300;
+            word-break: break-all;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        @media (max-width: 900px) {
+            .viz-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1.main-title {
+                font-size: 34px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 20px;
+            }
+
+            .container {
+                padding: 0 16px;
+            }
+
+            .stage { height: 300px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1 class="main-title">Дерево рекурсии</h1>
+
+        <div class="panel">
+            <h2 class="section-title">Ввод данных</h2>
+
+            <div class="controls">
+                <div class="input-group">
+                    <label>Функция (задача 16 ЕГЭ)</label>
+                    <div class="pill-row" id="funcPills">
+                        <button class="btn active" data-func="fib">Фибоначчи</button>
+                        <button class="btn" data-func="fact">Факториал</button>
+                    </div>
+                </div>
+
+                <div class="input-group" style="flex: 0 0 auto;">
+                    <label>Аргумент n</label>
+                    <input type="number" id="nInput" value="6" min="1" max="9">
+                    <div class="input-error" id="inputError"></div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="input-group">
+                    <label>Скорость анимации</label>
+                    <input type="range" id="speedRange" min="1" max="20" value="8">
+                </div>
+
+                <div class="input-group">
+                    <label>Управление</label>
+                    <div class="pill-row">
+                        <button class="btn primary" id="playBtn">▶ Старт</button>
+                        <button class="btn" id="stepBtn">Шаг →</button>
+                        <button class="btn" id="resetBtn">⟲ Сброс</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2 class="section-title">Визуализация</h2>
+            <div class="viz-grid">
+                <div>
+                    <div class="stage" id="stage"></div>
+                    <div class="legend">
+                        <span class="l-stack">в стеке вызовов</span>
+                        <span class="l-done">посчитан</span>
+                        <span class="l-dup">повторный вызов</span>
+                    </div>
+                </div>
+                <div class="code-panel">
+                    <div class="code-title">Python · <span id="codeFuncName">F(n) — Фибоначчи</span></div>
+                    <div class="code-body" id="codeBody"></div>
+                    <div class="code-note" id="codeNote"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2 class="section-title">Показатели</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="label">Текущий шаг</div>
+                    <div class="value" id="stepInfo">0 / 0</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Стек вызовов</div>
+                    <div class="value" id="stackInfo">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Всего вызовов</div>
+                    <div class="value" id="callsInfo">0</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Повторных вызовов</div>
+                    <div class="value" id="dupInfo">0</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Результат</div>
+                    <div class="value" id="resultInfo">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Статус</div>
+                    <div class="value" id="statusInfo">Готов</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /*
+        ================================================================
+        Визуализатор дерева рекурсии (шаблон VizCore).
+        Рекурсия моделируется заранее: строится полное дерево вызовов
+        и последовательность шагов call / return.
+        Шаг 'call' знает родителя — ребро рисуется в момент вызова.
+        Повторный вызов = вызов, чьё значение уже посчитано ранее
+        (наглядный аргумент в пользу мемоизации из задачи 16).
+        ================================================================
+        */
+        const stage = document.getElementById('stage');
+        const playBtn = document.getElementById('playBtn');
+        const stepBtn = document.getElementById('stepBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const speedRange = document.getElementById('speedRange');
+        const nInput = document.getElementById('nInput');
+        const inputError = document.getElementById('inputError');
+        const codeBody = document.getElementById('codeBody');
+        const codeFuncName = document.getElementById('codeFuncName');
+        const codeNote = document.getElementById('codeNote');
+
+        const FUNCS = {
+            fib: {
+                name: 'F(n) — Фибоначчи',
+                maxN: 9,
+                note: 'F(n) = 1 при n < 3; F(n) = F(n−1) + F(n−2) при n ≥ 3',
+                lines: [
+                    'def F(n):',
+                    '    if n < 3:',
+                    '        return 1',
+                    '    return F(n - 1) + F(n - 2)'
+                ]
+            },
+            fact: {
+                name: 'F(n) — факториал',
+                maxN: 12,
+                note: 'F(n) = 1 при n ≤ 2; F(n) = F(n−1) × (n−1) при n > 2',
+                lines: [
+                    'def F(n):',
+                    '    if n <= 2:',
+                    '        return 1',
+                    '    return F(n - 1) * (n - 1)'
+                ]
+            }
+        };
+
+        const R = 22;          // радиус узла
+        const X_SLOT = 60;     // шаг по горизонтали между листьями
+        const Y_SLOT = 74;     // шаг по вертикали между уровнями
+
+        let currentFunc = 'fib';
+        let steps = [];
+        let current = -1;
+        let playing = false;
+        let timer = null;
+        let nodesById = {};    // id -> данные узла (x, y, n, value)
+        let stackArr = [];
+        let callCount = 0;
+        let dupCount = 0;
+        let rootValue = null;
+
+        /* ---------- Построение дерева и шагов ---------- */
+        function build(kind, n) {
+            let nextId = 0;
+            const returned = new Set();   // значения n, уже посчитанные к моменту вызова
+            const out = [];
+
+            function rec(arg, depth, parentId) {
+                const id = nextId++;
+                const dup = returned.has(arg) && depth > 0;
+                out.push({ type: 'call', id, parentId, n: arg, depth, dup, line: 2 });
+
+                let value, children = [];
+                const isBase = kind === 'fib' ? arg < 3 : arg <= 2;
+                if (isBase) {
+                    value = 1;
+                    out.push({ type: 'return', id, value, line: 3 });
+                } else {
+                    const c1 = rec(arg - 1, depth + 1, id);
+                    children.push(c1);
+                    if (kind === 'fib') {
+                        const c2 = rec(arg - 2, depth + 1, id);
+                        children.push(c2);
+                        value = c1.value + c2.value;
+                    } else {
+                        value = c1.value * (arg - 1);
+                    }
+                    out.push({ type: 'return', id, value, line: 4 });
+                }
+                returned.add(arg);
+                return { id, n: arg, depth, value, children };
+            }
+
+            const root = rec(n, 0, null);
+
+            // раскладка: листьям — слоты слева направо, внутренним — центр детей
+            let leafSlot = 0;
+            let maxDepth = 0;
+            (function layout(node, depth) {
+                maxDepth = Math.max(maxDepth, depth);
+                if (!node.children.length) {
+                    node.x = leafSlot++;
+                } else {
+                    node.children.forEach(c => layout(c, depth + 1));
+                    node.x = (node.children[0].x + node.children[node.children.length - 1].x) / 2;
+                }
+                node.y = depth;
+            })(root, 0);
+
+            return { root, steps: out, leaves: leafSlot, maxDepth };
+        }
+
+        /* ---------- Рендер ---------- */
+        function renderCode() {
+            const cfg = FUNCS[currentFunc];
+            codeFuncName.textContent = cfg.name;
+            codeNote.textContent = cfg.note;
+            codeBody.innerHTML = '';
+            cfg.lines.forEach((text, idx) => {
+                const div = document.createElement('div');
+                div.className = 'code-line';
+                div.dataset.line = idx + 1;
+                const ln = document.createElement('span');
+                ln.className = 'ln';
+                ln.textContent = idx + 1;
+                const code = document.createElement('span');
+                code.textContent = text;
+                div.appendChild(ln);
+                div.appendChild(code);
+                codeBody.appendChild(div);
+            });
+        }
+
+        function highlightLine(lineNo) {
+            codeBody.querySelectorAll('.code-line').forEach(el => {
+                el.classList.toggle('active', parseInt(el.dataset.line) === lineNo);
+            });
+        }
+
+        function nodeXY(id) {
+            const nd = nodesById[id];
+            return { x: 30 + nd.x * X_SLOT, y: 34 + nd.y * Y_SLOT };
+        }
+
+        function drawCall(s) {
+            const svg = stage.querySelector('svg');
+            const p = nodeXY(s.id);
+
+            if (s.parentId !== null) {
+                const pp = nodeXY(s.parentId);
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', pp.x); line.setAttribute('y1', pp.y + R);
+                line.setAttribute('x2', p.x); line.setAttribute('y2', p.y - R);
+                line.setAttribute('class', 'r-edge');
+                svg.appendChild(line);
+            }
+
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.setAttribute('class', 'r-node onstack' + (s.dup ? ' dup' : ''));
+            g.setAttribute('id', 'rnode-' + s.id);
+            g.innerHTML = `<circle cx="${p.x}" cy="${p.y}" r="${R}"/>
+                           <text x="${p.x}" y="${p.y}">${s.n}</text>`;
+            svg.appendChild(g);
+        }
+
+        function drawReturn(s) {
+            const g = document.getElementById('rnode-' + s.id);
+            if (!g) return;
+            g.classList.remove('onstack');
+            g.classList.add('done');
+            const p = nodeXY(s.id);
+            const svg = stage.querySelector('svg');
+            const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            t.setAttribute('x', p.x);
+            t.setAttribute('y', p.y + R + 16);
+            t.setAttribute('class', 'r-val');
+            t.textContent = s.value;
+            svg.appendChild(t);
+        }
+
+        /* ---------- Движок ---------- */
+        function rebuild() {
+            stopPlaying();
+            const cfg = FUNCS[currentFunc];
+            let n = parseInt(nInput.value);
+            if (isNaN(n) || n < 1) n = 1;
+            if (n > cfg.maxN) {
+                inputError.textContent = `Для наглядности дерева n ≤ ${cfg.maxN}.`;
+                n = cfg.maxN;
+                nInput.value = n;
+            } else {
+                inputError.textContent = '';
+            }
+
+            const { root, steps: st, leaves, maxDepth } = build(currentFunc, n);
+            steps = st;
+            steps.push({ type: 'done' });
+
+            nodesById = {};
+            (function collect(node) {
+                nodesById[node.id] = node;
+                node.children.forEach(collect);
+            })(root);
+
+            const W = Math.max(300, leaves * X_SLOT + 60);
+            const H = (maxDepth + 1) * Y_SLOT + 90;
+            stage.innerHTML =
+                `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"></svg>`;
+
+            renderCode();
+            current = -1;
+            stackArr = [];
+            callCount = 0;
+            dupCount = 0;
+            rootValue = null;
+            updateInfo();
+            document.getElementById('stackInfo').textContent = '—';
+            document.getElementById('resultInfo').textContent = '—';
+            setStatus('Готов');
+        }
+
+        function applyStep(i, s) {
+            if (s.type === 'call') {
+                drawCall(s);
+                stackArr.push(`F(${s.n})`);
+                callCount++;
+                if (s.dup) dupCount++;
+            } else if (s.type === 'return') {
+                drawReturn(s);
+                stackArr.pop();
+                if (stackArr.length === 0) rootValue = s.value;
+            } else if (s.type === 'done') {
+                // финиш
+            }
+            if (s.line) highlightLine(s.line);
+            document.getElementById('stackInfo').textContent =
+                stackArr.length ? stackArr.join(' ') : '(пусто)';
+            document.getElementById('resultInfo').textContent =
+                rootValue !== null ? `F(${nInput.value}) = ${rootValue}` : '—';
+            updateInfo();
+        }
+
+        function updateInfo() {
+            document.getElementById('stepInfo').textContent =
+                `${Math.max(current + 1, 0)} / ${steps.length}`;
+            document.getElementById('callsInfo').textContent = callCount;
+            document.getElementById('dupInfo').textContent = dupCount;
+        }
+
+        function setStatus(t) {
+            document.getElementById('statusInfo').textContent = t;
+        }
+
+        function delay() {
+            return 1100 - speedRange.value * 50;
+        }
+
+        function stopPlaying() {
+            playing = false;
+            clearTimeout(timer);
+            playBtn.textContent = '▶ Старт';
+        }
+
+        function tick() {
+            if (!playing) return;
+            if (current >= steps.length - 1) {
+                stopPlaying();
+                setStatus('Дерево построено');
+                return;
+            }
+            current++;
+            applyStep(current, steps[current]);
+            timer = setTimeout(tick, delay());
+        }
+
+        /* ---------- События ---------- */
+        playBtn.addEventListener('click', () => {
+            if (playing) { stopPlaying(); setStatus('Пауза'); return; }
+            if (current >= steps.length - 1) rebuild();
+            playing = true;
+            playBtn.textContent = '⏸ Пауза';
+            setStatus('Выполняется');
+            tick();
+        });
+
+        stepBtn.addEventListener('click', () => {
+            stopPlaying();
+            if (current < steps.length - 1) {
+                current++;
+                applyStep(current, steps[current]);
+                setStatus(current === steps.length - 1 ? 'Дерево построено' : 'Пошагово');
+            }
+        });
+
+        resetBtn.addEventListener('click', rebuild);
+        nInput.addEventListener('change', rebuild);
+
+        document.querySelectorAll('#funcPills .btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#funcPills .btn')
+                    .forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFunc = btn.dataset.func;
+                nInput.max = FUNCS[currentFunc].maxN;
+                rebuild();
+            });
+        });
+
+        /* ---------- Старт ---------- */
+        rebuild();
+    </script>
+</body>
+
+</html>

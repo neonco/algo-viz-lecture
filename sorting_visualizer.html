@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Визуализатор сортировок</title>
+    <!-- Визуализатор сортировок: пузырьковая и шейкерная (cocktail shaker).
+         Код алгоритма показан на Python с подсветкой выполняемой строки.
+         Стиль — по шаблону visualizer_template.html («Под капотом float»). -->
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --accent: #8736f5;
+            --text: #111;
+            --gray: #666;
+            --light-gray: #ddd;
+            --ok: #4CAF50;
+            --warn: #FFC107;
+            --bad: #FF4D4D;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #ffffff;
+            color: #333;
+            min-height: 100vh;
+            padding: 0 0 20px 0;
+            font-size: 16px;
+        }
+
+        h1.main-title {
+            text-align: center;
+            margin-bottom: 10px;
+            margin-top: 10px;
+            color: var(--text);
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: -1px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 40px;
+        }
+
+        .panel {
+            background: #fff;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 300;
+            font-size: 24px;
+            color: var(--text);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .controls {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .input-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text);
+            font-size: 18px;
+            font-weight: 400;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 5px 0;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--light-gray);
+            color: var(--text);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 20px;
+            font-weight: 300;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-bottom-color: var(--accent);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+            height: 32px;
+        }
+
+        .pill-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 6px 18px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 30px;
+            color: #666;
+            font-family: inherit;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .btn.primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .btn.primary:hover {
+            opacity: 0.85;
+        }
+
+        .input-error {
+            color: var(--bad);
+            font-size: 13px;
+            margin-top: 4px;
+            min-height: 18px;
+        }
+
+        /* --- Сцена + код --- */
+        .viz-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 30px;
+            align-items: stretch;
+        }
+
+        .stage {
+            border-top: 1px solid var(--light-gray);
+            border-bottom: 1px solid var(--light-gray);
+            height: 340px;
+            padding: 20px 10px 0 10px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 3px;
+        }
+
+        .bar {
+            flex: 1;
+            max-width: 46px;
+            background: #d9d9de;
+            border-radius: 4px 4px 0 0;
+            transition: height 0.15s, background 0.15s;
+            position: relative;
+        }
+
+        .bar .bar-val {
+            position: absolute;
+            top: -22px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+            color: #999;
+            font-family: 'Consolas', monospace;
+        }
+
+        .legend {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            margin-top: 12px;
+            flex-wrap: wrap;
+            font-size: 14px;
+            color: var(--gray);
+        }
+
+        .legend span::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            margin-right: 6px;
+            vertical-align: -1px;
+        }
+
+        .legend .l-def::before { background: #d9d9de; }
+        .legend .l-cmp::before { background: var(--warn); }
+        .legend .l-swp::before { background: var(--accent); }
+        .legend .l-ok::before { background: var(--ok); }
+
+        /* --- Панель Python-кода --- */
+        .code-panel {
+            border: 1px solid var(--light-gray);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .code-title {
+            background: #f5f5f7;
+            padding: 8px 16px;
+            font-size: 13px;
+            color: var(--gray);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .code-body {
+            padding: 14px 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14.5px;
+            line-height: 1.7;
+            flex: 1;
+        }
+
+        .code-line {
+            display: flex;
+            padding: 0 16px 0 0;
+            border-left: 3px solid transparent;
+            white-space: pre;
+            color: #444;
+        }
+
+        .code-line .ln {
+            width: 36px;
+            text-align: right;
+            padding-right: 12px;
+            color: #bbb;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .code-line.active {
+            background: #f3ebfd;
+            border-left-color: var(--accent);
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 30px;
+            margin-top: 15px;
+        }
+
+        .info-item {
+            border-top: 1px solid var(--light-gray);
+            padding-top: 5px;
+        }
+
+        .info-item .label {
+            color: var(--gray);
+            font-size: 14px;
+            margin-bottom: 5px;
+            font-weight: 400;
+        }
+
+        .info-item .value {
+            color: var(--text);
+            font-size: 20px;
+            font-weight: 300;
+            word-break: break-all;
+        }
+
+        @media (max-width: 900px) {
+            .viz-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1.main-title {
+                font-size: 34px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 20px;
+            }
+
+            .container {
+                padding: 0 16px;
+            }
+
+            .stage { height: 240px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1 class="main-title">Визуализатор сортировок</h1>
+
+        <div class="panel">
+            <h2 class="section-title">Ввод данных</h2>
+
+            <div class="controls">
+                <div class="input-group">
+                    <label>Алгоритм</label>
+                    <div class="pill-row" id="algoPills">
+                        <button class="btn active" data-algo="bubble">Пузырьковая</button>
+                        <button class="btn" data-algo="cocktail">Шейкерная</button>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Свой массив (числа через пробел)</label>
+                    <input type="text" id="arrayInput" placeholder="например: 5 1 4 2 8">
+                    <div class="input-error" id="inputError"></div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="input-group">
+                    <label>Размер случайного массива: <span id="sizeLabel">15</span></label>
+                    <input type="range" id="sizeRange" min="6" max="30" value="15">
+                </div>
+
+                <div class="input-group">
+                    <label>Скорость анимации</label>
+                    <input type="range" id="speedRange" min="1" max="20" value="10">
+                </div>
+
+                <div class="input-group">
+                    <label>Управление</label>
+                    <div class="pill-row">
+                        <button class="btn primary" id="playBtn">▶ Старт</button>
+                        <button class="btn" id="stepBtn">Шаг →</button>
+                        <button class="btn" id="resetBtn">⟲ Сброс</button>
+                        <button class="btn" id="shuffleBtn">🎲 Случайный</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2 class="section-title">Визуализация</h2>
+            <div class="viz-grid">
+                <div>
+                    <div class="stage" id="stage"></div>
+                    <div class="legend">
+                        <span class="l-def">элемент</span>
+                        <span class="l-cmp">сравнение</span>
+                        <span class="l-swp">обмен</span>
+                        <span class="l-ok">на своём месте</span>
+                    </div>
+                </div>
+                <div class="code-panel">
+                    <div class="code-title">Python · <span id="codeAlgoName">пузырьковая сортировка</span></div>
+                    <div class="code-body" id="codeBody"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2 class="section-title">Показатели</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="label">Текущий шаг</div>
+                    <div class="value" id="stepInfo">0 / 0</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Сравнений</div>
+                    <div class="value" id="cmpInfo">0</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Обменов</div>
+                    <div class="value" id="swpInfo">0</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Сложность алгоритма</div>
+                    <div class="value" id="bigOInfo">O(n²)</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Статус</div>
+                    <div class="value" id="statusInfo">Готов</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /*
+        ================================================================
+        Визуализатор сортировок (шаблон VizCore).
+        Пузырьковая и шейкерная сортировки — как генераторы шагов.
+        Каждый шаг знает, какую строку Python-кода он выполняет (line).
+        ================================================================
+        */
+        const stage = document.getElementById('stage');
+        const playBtn = document.getElementById('playBtn');
+        const stepBtn = document.getElementById('stepBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const shuffleBtn = document.getElementById('shuffleBtn');
+        const speedRange = document.getElementById('speedRange');
+        const sizeRange = document.getElementById('sizeRange');
+        const sizeLabel = document.getElementById('sizeLabel');
+        const arrayInput = document.getElementById('arrayInput');
+        const inputError = document.getElementById('inputError');
+        const codeBody = document.getElementById('codeBody');
+        const codeAlgoName = document.getElementById('codeAlgoName');
+
+        /* --- Python-код алгоритмов (то, что видят ученики) --- */
+        const PY_CODE = {
+            bubble: {
+                name: 'пузырьковая сортировка',
+                bigO: 'O(n²)',
+                lines: [
+                    'def bubble_sort(a):',
+                    '    n = len(a)',
+                    '    for i in range(n):',
+                    '        for j in range(n - i - 1):',
+                    '            if a[j] > a[j + 1]:',
+                    '                a[j], a[j + 1] = a[j + 1], a[j]'
+                ]
+            },
+            cocktail: {
+                name: 'шейкерная сортировка',
+                bigO: 'O(n²), но меньше проходов',
+                lines: [
+                    'def cocktail_shaker_sort(a):',
+                    '    left, right = 0, len(a) - 1',
+                    '    while left < right:',
+                    '        for i in range(left, right):      # вперёд →',
+                    '            if a[i] > a[i + 1]:',
+                    '                a[i], a[i + 1] = a[i + 1], a[i]',
+                    '        right -= 1',
+                    '        for i in range(right, left, -1):  # ← назад',
+                    '            if a[i] > a[i + 1]:',
+                    '                a[i], a[i + 1] = a[i + 1], a[i]',
+                    '        left += 1'
+                ]
+            }
+        };
+
+        let currentAlgo = 'bubble';
+        let customArray = null;   // если задан — используем его вместо случайного
+        let values = [];
+        let bars = [];
+        let steps = [];
+        let current = -1;
+        let playing = false;
+        let timer = null;
+        let cmpCount = 0;
+        let swpCount = 0;
+
+        /* ---------- Данные ---------- */
+        function makeArray() {
+            if (customArray) {
+                values = [...customArray];
+                return;
+            }
+            const n = parseInt(sizeRange.value);
+            values = Array.from({ length: n }, () => 3 + Math.floor(Math.random() * 97));
+        }
+
+        function renderArray() {
+            stage.innerHTML = '';
+            const showVals = values.length <= 20;
+            bars = values.map(v => {
+                const d = document.createElement('div');
+                d.className = 'bar';
+                d.style.height = v + '%';
+                if (showVals) {
+                    const s = document.createElement('span');
+                    s.className = 'bar-val';
+                    s.textContent = v;
+                    d.appendChild(s);
+                }
+                stage.appendChild(d);
+                return d;
+            });
+        }
+
+        /* ---------- Python-панель ---------- */
+        function renderCode() {
+            const cfg = PY_CODE[currentAlgo];
+            codeAlgoName.textContent = cfg.name;
+            codeBody.innerHTML = '';
+            cfg.lines.forEach((text, idx) => {
+                const div = document.createElement('div');
+                div.className = 'code-line';
+                div.dataset.line = idx + 1;
+                const ln = document.createElement('span');
+                ln.className = 'ln';
+                ln.textContent = idx + 1;
+                const code = document.createElement('span');
+                code.textContent = text;
+                div.appendChild(ln);
+                div.appendChild(code);
+                codeBody.appendChild(div);
+            });
+        }
+
+        function highlightLine(lineNo) {
+            codeBody.querySelectorAll('.code-line').forEach(el => {
+                el.classList.toggle('active', parseInt(el.dataset.line) === lineNo);
+            });
+        }
+
+        /* ---------- Алгоритмы как генераторы шагов ---------- */
+        function* bubbleGen(a) {
+            for (let i = 0; i < a.length; i++) {
+                for (let j = 0; j < a.length - i - 1; j++) {
+                    yield { type: 'compare', i: j, j: j + 1, line: 5 };
+                    if (a[j] > a[j + 1]) {
+                        [a[j], a[j + 1]] = [a[j + 1], a[j]];
+                        yield { type: 'swap', i: j, j: j + 1, vi: a[j], vj: a[j + 1], line: 6 };
+                    }
+                }
+                yield { type: 'mark-sorted', i: a.length - i - 1, line: 3 };
+            }
+        }
+
+        function* cocktailGen(a) {
+            let left = 0, right = a.length - 1;
+            while (left < right) {
+                for (let i = left; i < right; i++) {
+                    yield { type: 'compare', i, j: i + 1, line: 5 };
+                    if (a[i] > a[i + 1]) {
+                        [a[i], a[i + 1]] = [a[i + 1], a[i]];
+                        yield { type: 'swap', i, j: i + 1, vi: a[i], vj: a[i + 1], line: 6 };
+                    }
+                }
+                yield { type: 'mark-sorted', i: right, line: 7 };
+                right--;
+                if (left >= right) break;
+                for (let i = right; i > left; i--) {
+                    yield { type: 'compare', i: i - 1, j: i, line: 9 };
+                    if (a[i - 1] > a[i]) {
+                        [a[i - 1], a[i]] = [a[i], a[i - 1]];
+                        yield { type: 'swap', i: i - 1, j: i, vi: a[i - 1], vj: a[i], line: 10 };
+                    }
+                }
+                yield { type: 'mark-sorted', i: left, line: 11 };
+                left++;
+            }
+            yield { type: 'mark-sorted', i: left, line: 3 };
+        }
+
+        const ALGOS = { bubble: bubbleGen, cocktail: cocktailGen };
+
+        /* ---------- Движок проигрывания ---------- */
+        function rebuild(keepArray) {
+            stopPlaying();
+            if (!keepArray) makeArray();
+            renderArray();
+            renderCode();
+            const a = [...values];
+            steps = [];
+            for (const s of ALGOS[currentAlgo](a)) steps.push(s);
+            steps.push({ type: 'done' });
+            current = -1;
+            cmpCount = 0;
+            swpCount = 0;
+            updateInfo();
+            setStatus('Готов');
+            document.getElementById('bigOInfo').textContent = PY_CODE[currentAlgo].bigO;
+        }
+
+        function applyStep(i, s) {
+            if (s.type === 'compare') {
+                bars[s.i].style.background = 'var(--warn)';
+                bars[s.j].style.background = 'var(--warn)';
+                cmpCount++;
+            } else if (s.type === 'swap') {
+                bars[s.i].style.height = s.vi + '%';
+                bars[s.j].style.height = s.vj + '%';
+                const t1 = bars[s.i].querySelector('.bar-val');
+                const t2 = bars[s.j].querySelector('.bar-val');
+                if (t1) t1.textContent = s.vi;
+                if (t2) t2.textContent = s.vj;
+                bars[s.i].style.background = 'var(--accent)';
+                bars[s.j].style.background = 'var(--accent)';
+                swpCount++;
+            } else if (s.type === 'mark-sorted') {
+                bars[s.i].style.background = 'var(--ok)';
+            } else if (s.type === 'done') {
+                bars.forEach(b => b.style.background = 'var(--ok)');
+            }
+            // потушить жёлтые подсветки прошлого сравнения
+            if (i > 0) {
+                const prev = steps[i - 1];
+                if (prev.type === 'compare') {
+                    [prev.i, prev.j].forEach(k => {
+                        const cur = bars[k].style.background;
+                        if (cur !== 'var(--ok)') bars[k].style.background = '#d9d9de';
+                    });
+                }
+            }
+            if (s.line) highlightLine(s.line);
+            updateInfo();
+        }
+
+        function updateInfo() {
+            document.getElementById('stepInfo').textContent =
+                `${Math.max(current + 1, 0)} / ${steps.length}`;
+            document.getElementById('cmpInfo').textContent = cmpCount;
+            document.getElementById('swpInfo').textContent = swpCount;
+        }
+
+        function setStatus(t) {
+            document.getElementById('statusInfo').textContent = t;
+        }
+
+        function delay() {
+            return 1050 - speedRange.value * 50;
+        }
+
+        function stopPlaying() {
+            playing = false;
+            clearTimeout(timer);
+            playBtn.textContent = '▶ Старт';
+        }
+
+        function tick() {
+            if (!playing) return;
+            if (current >= steps.length - 1) {
+                stopPlaying();
+                setStatus('Массив отсортирован');
+                return;
+            }
+            current++;
+            applyStep(current, steps[current]);
+            timer = setTimeout(tick, delay());
+        }
+
+        /* ---------- События ---------- */
+        playBtn.addEventListener('click', () => {
+            if (playing) { stopPlaying(); setStatus('Пауза'); return; }
+            if (current >= steps.length - 1) rebuild(true);
+            playing = true;
+            playBtn.textContent = '⏸ Пауза';
+            setStatus('Выполняется');
+            tick();
+        });
+
+        stepBtn.addEventListener('click', () => {
+            stopPlaying();
+            if (current < steps.length - 1) {
+                current++;
+                applyStep(current, steps[current]);
+                setStatus(current === steps.length - 1 ? 'Массив отсортирован' : 'Пошагово');
+            }
+        });
+
+        resetBtn.addEventListener('click', () => rebuild(true));
+        shuffleBtn.addEventListener('click', () => {
+            customArray = null;
+            arrayInput.value = '';
+            inputError.textContent = '';
+            rebuild(false);
+        });
+
+        sizeRange.addEventListener('input', () => {
+            sizeLabel.textContent = sizeRange.value;
+            customArray = null;
+            arrayInput.value = '';
+            rebuild(false);
+        });
+
+        // Ручной ввод массива
+        arrayInput.addEventListener('change', () => {
+            const raw = arrayInput.value.trim();
+            if (raw === '') {
+                customArray = null;
+                inputError.textContent = '';
+                rebuild(false);
+                return;
+            }
+            const nums = raw.split(/[\s,;]+/).filter(x => x !== '').map(Number);
+            if (nums.some(isNaN)) {
+                inputError.textContent = 'Только числа, разделённые пробелами.';
+                return;
+            }
+            if (nums.length < 3 || nums.length > 30) {
+                inputError.textContent = 'От 3 до 30 элементов.';
+                return;
+            }
+            if (nums.some(v => v < 1 || v > 99 || !Number.isInteger(v))) {
+                inputError.textContent = 'Целые числа от 1 до 99.';
+                return;
+            }
+            inputError.textContent = '';
+            customArray = nums;
+            rebuild(false);
+        });
+
+        document.querySelectorAll('#algoPills .btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#algoPills .btn')
+                    .forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentAlgo = btn.dataset.algo;
+                rebuild(true);
+            });
+        });
+
+        /* ---------- Старт ---------- */
+        rebuild(false);
+    </script>
+</body>
+
+</html>
