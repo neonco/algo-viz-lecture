@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Шаблон визуализатора</title>
+    <!--
+    ============================================================
+    ШАБЛОН ВИЗУАЛИЗАТОРА АЛГОРИТМОВ
+    ============================================================
+    Стиль повторяет визуализатор IEEE 754 («Под капотом float»):
+    белый фон, тонкая типографика, фиолетовый акцент #8736f5,
+    подчёркнутые поля ввода, кнопки-пилюли, инфо-сетка.
+
+    КАК ПОЛЬЗОВАТЬСЯ ШАБЛОНОМ:
+    1. Скопируйте файл и переименуйте (например, dijkstra_visualizer.html).
+    2. Поменяйте <title> и заголовок h1.main-title.
+    3. В HTML замените содержимое блока «РАБОЧАЯ ОБЛАСТЬ» (stage)
+       на свою разметку (столбцы, граф, таблица, канвас...).
+    4. В JS реализуйте три функции:
+         - buildSteps()  — превратить входные данные в массив шагов;
+         - applyStep(i)  — отрисовать шаг с номером i;
+         - resetData()   — привести данные к начальному виду.
+    5. Управление (Старт/Пауза/Шаг/Сброс/Скорость) уже работает —
+       оно вызывает ваши функции через объект VizCore.
+
+    Идея: алгоритм НЕ рисует сам себя. Алгоритм порождает
+    ПОСЛЕДОВАТЕЛЬНОСТЬ ШАГОВ, а шаблон умеет их проигрывать
+    вперёд/назад, с любой скоростью и по одному.
+    ============================================================
+    -->
+    <style>
+        /* ============ БАЗА (как в IEEE 754) ============ */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --accent: #8736f5;      /* фирменный фиолетовый */
+            --text: #111;
+            --gray: #666;
+            --light-gray: #ddd;
+            --ok: #4CAF50;          /* «хорошо» / готово */
+            --warn: #FFC107;        /* сравнение / текущее */
+            --bad: #FF4D4D;         /* конфликт / удаление */
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #ffffff;
+            color: #333;
+            min-height: 100vh;
+            padding: 0 0 20px 0;
+            font-size: 16px;
+        }
+
+        h1.main-title {
+            text-align: center;
+            margin-bottom: 10px;
+            margin-top: 10px;
+            color: var(--text);
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: -1px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 40px;
+        }
+
+        .panel {
+            background: #fff;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 300;
+            font-size: 24px;
+            color: var(--text);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        /* ============ УПРАВЛЕНИЕ ============ */
+        .controls {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .input-group {
+            flex: 1;
+            min-width: 220px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text);
+            font-size: 18px;
+            font-weight: 400;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 5px 0;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--light-gray);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 20px;
+            font-weight: 300;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-bottom-color: var(--accent);
+        }
+
+        /* Ползунок скорости / размера */
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+            height: 32px;
+        }
+
+        /* Кнопки-пилюли (как выбор типа float) */
+        .pill-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 6px 18px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 30px;
+            color: #666;
+            font-family: inherit;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .btn.primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .btn.primary:hover {
+            opacity: 0.85;
+        }
+
+        /* ============ РАБОЧАЯ ОБЛАСТЬ (заменить под свою тему) ============ */
+        .stage {
+            border-top: 1px solid var(--light-gray);
+            border-bottom: 1px solid var(--light-gray);
+            min-height: 320px;
+            padding: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .stage-placeholder {
+            color: #999;
+            font-weight: 300;
+            font-size: 20px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        /* Для столбчатых визуализаций: прижать контент к нижнему краю */
+        .stage.bars-bottom {
+            align-items: flex-end;
+        }
+
+        /* ============ ИНФО-СЕТКА (как в IEEE 754) ============ */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-top: 15px;
+        }
+
+        .info-item {
+            border-top: 1px solid var(--light-gray);
+            padding-top: 5px;
+        }
+
+        .info-item .label {
+            color: var(--gray);
+            font-size: 14px;
+            margin-bottom: 5px;
+            font-weight: 400;
+        }
+
+        .info-item .value {
+            color: var(--text);
+            font-size: 20px;
+            font-weight: 300;
+            word-break: break-all;
+        }
+
+        /* ============ МОБИЛЬНАЯ АДАПТАЦИЯ ============ */
+        @media (max-width: 768px) {
+            h1.main-title {
+                font-size: 36px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 20px;
+            }
+
+            .container {
+                padding: 0 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <!-- ЗАГОЛОВОК: заменить на тему визуализатора -->
+        <h1 class="main-title">Шаблон визуализатора</h1>
+
+        <!-- ПАНЕЛЬ 1. Входные данные и управление -->
+        <div class="panel">
+            <h2 class="section-title">Ввод данных</h2>
+
+            <div class="controls">
+                <!-- Пример поля ввода. Замените на свои данные:
+                     строка чисел, веса графа, текст и т.п. -->
+                <div class="input-group">
+                    <label>Входные данные (пример)</label>
+                    <input type="text" id="dataInput" value="5 1 4 2 8">
+                </div>
+
+                <!-- Пример переключателя вариантов (как Half/Float/Double) -->
+                <div class="input-group">
+                    <label>Режим</label>
+                    <div class="pill-row" id="modePills">
+                        <button class="btn active" data-mode="a">Вариант А</button>
+                        <button class="btn" data-mode="b">Вариант Б</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="input-group">
+                    <label>Скорость анимации</label>
+                    <input type="range" id="speedRange" min="1" max="20" value="6">
+                </div>
+
+                <div class="input-group">
+                    <label>Управление</label>
+                    <div class="pill-row">
+                        <button class="btn primary" id="playBtn">▶ Старт</button>
+                        <button class="btn" id="stepBtn">Шаг →</button>
+                        <button class="btn" id="resetBtn">⟲ Сброс</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ПАНЕЛЬ 2. Рабочая область: сюда алгоритм выводит себя -->
+        <div class="panel">
+            <h2 class="section-title">Визуализация</h2>
+            <div class="stage bars-bottom" id="stage">
+                <!-- ЗАМЕНИТЕ: здесь должны жить столбцы / узлы графа / клетки -->
+                <div class="stage-placeholder">
+                    Здесь будет визуализация.<br>
+                    Замените блок #stage своей разметкой.
+                </div>
+            </div>
+        </div>
+
+        <!-- ПАНЕЛЬ 3. Численные показатели шага -->
+        <div class="panel">
+            <h2 class="section-title">Показатели</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="label">Текущий шаг</div>
+                    <div class="value" id="stepInfo">0 / 0</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Статус</div>
+                    <div class="value" id="statusInfo">Готов</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Метрика 1 (пример)</div>
+                    <div class="value" id="metric1Info">—</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">Метрика 2 (пример)</div>
+                    <div class="value" id="metric2Info">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /*
+        ================================================================
+        ЯДРО ШАБЛОНА — VizCore
+        ----------------------------------------------------------------
+        Всё управление уже написано. Вам нужно реализовать три функции
+        в секции «ЛОГИКА ВИЗУАЛИЗАТОРА» ниже и передать их в VizCore.init().
+        ================================================================
+        */
+        const VizCore = (() => {
+            let steps = [];          // массив шагов, который вернула buildSteps()
+            let current = -1;        // номер показанного шага (-1 = исходное состояние)
+            let playing = false;
+            let timer = null;
+            let hooks = {};          // { buildSteps, applyStep, resetData, onStatus }
+
+            const playBtn = document.getElementById('playBtn');
+            const stepBtn = document.getElementById('stepBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const speedRange = document.getElementById('speedRange');
+
+            function delay() {
+                // чем больше значение ползунка — тем меньше пауза
+                return 1100 - speedRange.value * 50; // 1050..100 мс
+            }
+
+            function updateInfo() {
+                document.getElementById('stepInfo').textContent =
+                    `${Math.max(current + 1, 0)} / ${steps.length}`;
+            }
+
+            function setStatus(text) {
+                document.getElementById('statusInfo').textContent = text;
+            }
+
+            function stopPlaying() {
+                playing = false;
+                clearTimeout(timer);
+                playBtn.textContent = '▶ Старт';
+            }
+
+            function tick() {
+                if (!playing) return;
+                if (current >= steps.length - 1) {
+                    stopPlaying();
+                    setStatus('Готово');
+                    return;
+                }
+                current++;
+                hooks.applyStep(current, steps[current]);
+                updateInfo();
+                timer = setTimeout(tick, delay());
+            }
+
+            function rebuild() {
+                stopPlaying();
+                hooks.resetData();
+                steps = hooks.buildSteps() || [];
+                current = -1;
+                updateInfo();
+                setStatus(steps.length ? 'Готов' : 'Нет шагов');
+            }
+
+            playBtn.addEventListener('click', () => {
+                if (playing) { stopPlaying(); setStatus('Пауза'); return; }
+                if (current >= steps.length - 1) rebuild(); // доиграли — начать заново
+                playing = true;
+                playBtn.textContent = '⏸ Пауза';
+                setStatus('Выполняется');
+                tick();
+            });
+
+            stepBtn.addEventListener('click', () => {
+                stopPlaying();
+                if (current < steps.length - 1) {
+                    current++;
+                    hooks.applyStep(current, steps[current]);
+                    updateInfo();
+                    setStatus(current === steps.length - 1 ? 'Готово' : 'Пошагово');
+                }
+            });
+
+            resetBtn.addEventListener('click', rebuild);
+
+            speedRange.addEventListener('input', () => {
+                // скорость применится на следующем тикe автоматически
+            });
+
+            return {
+                init(h) { hooks = h; rebuild(); },
+                rebuild,                 // вызывайте после изменения входных данных
+                setStatus,
+                get currentStep() { return current; }
+            };
+        })();
+
+        /*
+        ================================================================
+        ЛОГИКА ВИЗУАЛИЗАТОРА — ВОТ ЭТО ВЫ МЕНЯЕТЕ ПОД СВОЮ ТЕМУ
+        ----------------------------------------------------------------
+        Ниже — демонстрационный пример: сортировка пузырьком.
+        Он показывает «контракт» шаблона:
+          resetData()  — нарисовать исходное состояние;
+          buildSteps() — вернуть массив шагов-инструкций;
+          applyStep(i) — отрисовать один шаг.
+        ================================================================
+        */
+
+        const stage = document.getElementById('stage');
+        let values = [];   // данные
+        let bars = [];     // DOM-элементы столбцов
+
+        // --- 1. Исходное состояние -------------------------------------
+        function resetData() {
+            values = document.getElementById('dataInput').value
+                .split(/\s+/).map(Number).filter(n => !isNaN(n));
+            stage.innerHTML = '';
+            bars = values.map(v => {
+                const d = document.createElement('div');
+                d.style.width = '40px';
+                d.style.height = (v * 30) + 'px';
+                d.style.background = '#d9d9de';
+                d.style.borderRadius = '4px 4px 0 0';
+                d.style.transition = 'background 0.2s';
+                stage.appendChild(d);
+                return d;
+            });
+        }
+
+        // --- 2. Превращаем алгоритм в массив шагов ---------------------
+        // Шаг — это просто объект-инструкция. Формат придумываете вы.
+        function buildSteps() {
+            const a = [...values];
+            const steps = [];
+            for (let i = 0; i < a.length; i++) {
+                for (let j = 0; j < a.length - i - 1; j++) {
+                    steps.push({ type: 'compare', i: j, j: j + 1 });
+                    if (a[j] > a[j + 1]) {
+                        [a[j], a[j + 1]] = [a[j + 1], a[j]];
+                        steps.push({ type: 'swap', i: j, j: j + 1, arr: [...a] });
+                    }
+                }
+            }
+            return steps;
+        }
+
+        // --- 3. Отрисовка одного шага ----------------------------------
+        function applyStep(i, step) {
+            bars.forEach(b => b.style.background = '#d9d9de');
+            if (step.type === 'compare') {
+                bars[step.i].style.background = 'var(--warn)';
+                bars[step.j].style.background = 'var(--warn)';
+            } else if (step.type === 'swap') {
+                step.arr.forEach((v, k) => bars[k].style.height = (v * 30) + 'px');
+                bars[step.i].style.background = 'var(--accent)';
+                bars[step.j].style.background = 'var(--accent)';
+            }
+        }
+
+        // --- Переключатель режимов (пример) -----------------------------
+        document.querySelectorAll('#modePills .btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#modePills .btn')
+                    .forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                VizCore.rebuild(); // пересобрать шаги под новый режим
+            });
+        });
+
+        // --- Изменили входные данные — пересобрать ----------------------
+        document.getElementById('dataInput').addEventListener('input', () => {
+            VizCore.rebuild();
+        });
+
+        // --- Старт -------------------------------------------------------
+        VizCore.init({ buildSteps, applyStep, resetData });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рекурсия (антипример)</title>
+    <!--
+    ================================================================
+    АНТИПРИМЕР визуализатора рекурсии.
+    Нарочито плохой вариант для разбора на лекции:
+      ✗ структура дерева вызовов не видна — только отступы в тексте;
+      ✗ всё выводится мгновенно, невозможно проследить порядок;
+      ✗ значения возвратов теряются среди строк;
+      ✗ не видно повторных вызовов — главной проблемы рекурсии;
+      ✗ нет управления, нет связи с кодом функции.
+    Хорошая версия — recursion_tree_visualizer.html
+    ================================================================
+    -->
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: #1e1e1e;
+            color: #c5c5c5;
+            padding: 24px;
+            font-size: 13px;
+        }
+
+        h1 {
+            font-size: 16px;
+            font-weight: 400;
+            color: #9a9a9a;
+            margin-bottom: 16px;
+        }
+
+        #log {
+            white-space: pre;
+            line-height: 1.45;
+        }
+
+        .dim { color: #6a6a6a; }
+    </style>
+</head>
+
+<body>
+    <h1>C:\visualizer&gt; python fib_trace.py</h1>
+    <div id="log"></div>
+
+    <script>
+        // print-отладка вместо визуализации: дерево превратилось в кашу отступов.
+        const N = 8;
+        let out = `def F(n):\n    if n < 3:\n        return 1\n    return F(n-1) + F(n-2)\n\nвызов F(${N}):\n\n`;
+        let calls = 0;
+
+        function F(n, depth) {
+            calls++;
+            const pad = '  '.repeat(depth);
+            out += `${pad}вызов F(${n})\n`;
+            let value;
+            if (n < 3) {
+                value = 1;
+            } else {
+                const a = F(n - 1, depth + 1);
+                const b = F(n - 2, depth + 1);
+                value = a + b;
+            }
+            out += `${pad}F(${n}) вернула ${value}\n`;
+            return value;
+        }
+
+        const result = F(N, 0);
+        out += `\nответ: F(${N}) = ${result}\n`;
+        out += `всего вызовов: ${calls} (но где они повторяются — из лога не видно)`;
+
+        document.getElementById('log').textContent = out;
+
+        const end = document.createElement('div');
+        end.className = 'dim';
+        end.textContent = '-- конец лога. чтобы посмотреть другой n, правьте исходник --';
+        document.body.appendChild(end);
+    </script>
+</body>
+
+</html>
